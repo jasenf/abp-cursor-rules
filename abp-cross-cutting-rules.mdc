@@ -1,0 +1,156 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: >
+  Cross-Cutting Concerns rules for ABP Framework projects. Covers global application features like auditing, 
+  localization, exception handling, distributed events, background jobs, caching, and multi-tenancy.
+globs:
+  - "**/*.cs"
+alwaysApply: false
+---
+
+# ABP Framework Cross-Cutting Concerns Rules
+
+This file defines best practices for implementing ABP's global infrastructure features that span multiple layers and modules,
+ensuring consistent, scalable, and maintainable implementations.
+
+**Library Information:**
+- Name: abp-cross-cutting
+- Tags: abp, concerns, auditing, localization, events, background-jobs, multi-tenancy
+
+---
+
+## 1. Auditing
+
+### 1.1 Use ABP Auditing Interfaces
+* **Rule:** Entities should inherit from `IAuditedObject`, `ICreationAuditedObject`, or full audited base classes.
+* **Why:** Ensures automatic population of creation and modification metadata.
+
+---
+
+### 1.2 Disable Auditing Only If Necessary
+* **Rule:** Avoid `[DisableAuditing]` unless the operation handles sensitive information.
+* **Why:** Auditing supports compliance and traceability.
+
+---
+
+## 2. Localization
+
+### 2.1 All User-Facing Text Must Be Localized
+* **Rule:** Wrap strings using `L["..."]` in Razor or `LocalizableString.Create(...)` in backend logic.
+* **Why:** Supports multi-language capabilities and user accessibility.
+
+---
+
+### 2.2 Organize Resource Files by Module
+* **Rule:** Maintain resource files under `Localization/<ModuleName>` and register them in module definitions.
+* **Why:** Keeps translations scoped and modular.
+
+---
+
+## 3. Exception Handling
+
+### 3.1 Use ABP BusinessException
+* **Rule:** For domain or validation errors, throw `BusinessException` with localization key.
+* **Why:** Ensures proper error formatting and user-friendly messages.
+
+---
+
+### 3.2 Avoid Catching Without Re-Throw
+* **Rule:** Never swallow exceptions unless you’re logging and handling with intent.
+* **Why:** Swallowed errors create hard-to-debug behavior.
+
+---
+
+## 4. Background Jobs
+
+### 4.1 Use IBackgroundJob<TArgs>
+* **Rule:** Implement jobs using `IBackgroundJob<T>` or ABP’s distributed job queues.
+* **Why:** Ensures scalable and decoupled background processing.
+
+---
+
+### 4.2 Keep Jobs Isolated and Retry-Friendly
+* **Rule:** Jobs should handle transient errors and avoid assuming state.
+* **Why:** Supports robust processing in async environments.
+
+---
+
+## 5. Event Bus (Domain + Distributed Events)
+
+### 5.1 Use IEventBus or IDistributedEventBus
+* **Rule:** Raise events for state changes that other modules or services care about.
+* **Why:** Promotes loose coupling and eventual consistency.
+
+---
+
+### 5.2 Keep Event Handlers Idempotent
+* **Rule:** Ensure event handlers don’t fail if run twice.
+* **Why:** Protects against message retries and duplicate processing.
+
+---
+
+## 6. Multi-Tenancy
+
+### 6.1 Use IMultiTenant or IMayHaveTenant
+* **Rule:** Annotate tenant-aware entities appropriately and use `ICurrentTenant` service when querying.
+* **Why:** Ensures tenant isolation is respected in logic and persistence.
+
+---
+
+### 6.2 Don’t Bypass Tenant Context
+* **Rule:** Never ignore tenant ID when loading data unless the scenario explicitly requires it (e.g., host-level config).
+* **Why:** Prevents data leakage across tenants.
+
+---
+
+## 7. Caching
+
+### 7.1 Use IDistributedCache<T>
+* **Rule:** Wrap expensive operations or lookups in distributed cache backed by Redis or in-memory.
+* **Why:** Improves performance and scalability.
+
+---
+
+### 7.2 Invalidate Cache on Data Mutation
+* **Rule:** Use consistent key patterns and invalidate or refresh cache after updates.
+* **Why:** Prevents stale data issues.
+
+---
+
+## 8. Rationale
+
+Cross-cutting concerns impact the entire system. These rules ensure:
+- Security and auditability across actions
+- Globalization and accessibility
+- Scalability via jobs and events
+- Tenant safety and performance consistency
+
+---
+
+## 9. Examples
+
+<example>
+
+```csharp
+public class Invoice : FullAuditedAggregateRoot<Guid>, IMultiTenant
+{
+    public string Number { get; private set; }
+    public Guid? TenantId { get; set; }
+}
+```
+</example>
+
+<example type="invalid">
+
+```csharp
+public class Invoice
+{
+    public string Number { get; set; }
+    public string CreatedBy { get; set; } // ❌ manual audit tracking
+}
+```
+</example>
