@@ -1,0 +1,140 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: >
+  UI and Frontend Layer rules for ABP Framework projects. Covers Razor Pages, MVC, Blazor, and JavaScript best practices.
+  Enforces component usage, localization, client proxy patterns, and separation of presentation and logic.
+globs:
+  - "**/Web/**/*.cshtml"
+  - "**/Web/**/*.razor"
+  - "**/Web/**/*.js"
+alwaysApply: false
+---
+
+# ABP Framework UI & Frontend Layer Rules
+
+These rules define UI development standards in ABP Framework projects, promoting consistency, modularity, and
+separation of concerns across Razor, Blazor, and JavaScript codebases.
+
+**Library Information:**
+- Name: abp-ui-frontend
+- Tags: abp, ui, blazor, razor, js, localization, client-proxy
+
+---
+
+## 1. Use ABP UI Components and Theming
+
+### 1.1 Leverage Built-In Components
+* **Rule:** Use ABP-provided components (modals, tables, forms, notifications) instead of custom-built ones where possible.
+* **Why:** Ensures consistency, accessibility, and theme compatibility.
+
+---
+
+### 1.2 Respect Layout and Styling Conventions
+* **Rule:** Use ABP’s layout system and styling tokens (e.g., Bootstrap classes or theme-specific variables).
+* **Why:** Maintains visual consistency across modules and supports dark mode/theming.
+
+---
+
+## 2. Localization and Internationalization
+
+### 2.1 Localize All User-Facing Text
+* **Rule:** Wrap strings in `L["YourText"]` or use localization services to ensure multi-language support.
+* **Why:** Required for global-ready applications and ABP’s language-switching capabilities.
+
+```razor
+<h1>@L["DashboardTitle"]</h1>
+```
+
+---
+
+### 2.2 Avoid Hardcoded Labels
+* **Rule:** Never embed static strings in HTML or JS. Move them to resource files.
+* **Why:** Supports maintainability and translation.
+
+---
+
+## 3. JavaScript Practices
+
+### 3.1 Use ABP JavaScript APIs
+* **Rule:** Use ABP's JS APIs (e.g., `abp.ajax`, `abp.notify`, `abp.message`) instead of direct DOM or raw fetch calls.
+* **Why:** Consistent UX and auto-handling of things like localization and validation.
+
+---
+
+### 3.2 Client Proxy Usage
+* **Rule:** Use generated client proxies to call backend methods instead of hand-writing AJAX endpoints.
+* **Why:** Enforces type safety and avoids duplication.
+
+```js
+await myApp.productService.create(input); // ✅ Proxy usage
+```
+
+---
+
+## 4. Razor & Blazor Best Practices
+
+### 4.1 Keep UI and Logic Separated
+* **Rule:** Use `@code { }` sections or code-behind files for logic. Avoid bloated `.razor` or `.cshtml` files.
+* **Why:** Improves readability and maintainability.
+
+---
+
+### 4.2 Follow Component Naming and Structure
+* **Rule:** Use PascalCase for component names, and place components in meaningful folders by feature or domain.
+* **Why:** Supports modular design and reuse.
+
+---
+
+## 5. Accessibility and Responsiveness
+
+### 5.1 Ensure Responsive Design
+* **Rule:** Use responsive layouts and Bootstrap grid system. Test across screen sizes.
+* **Why:** Required for mobile and tablet usability.
+
+---
+
+### 5.2 Support ARIA and Keyboard Navigation
+* **Rule:** Use semantic HTML and ensure modals, forms, and alerts are accessible.
+* **Why:** Supports inclusive, accessible web apps and legal compliance.
+
+---
+
+## 6. Rationale
+
+Following these frontend rules ensures:
+- Consistent UI/UX across modules.
+- Ease of internationalization and maintenance.
+- Reuse of ABP capabilities rather than reinventing the wheel.
+- Professional polish with accessibility and responsive design baked in.
+
+---
+
+## 7. Examples
+
+<example>
+
+```razor
+<!-- ✅ Localized, styled Razor content -->
+<div class="card">
+    <div class="card-header">@L["ProductList"]</div>
+    <div class="card-body">
+        <abp-table ... />
+    </div>
+</div>
+```
+</example>
+
+<example type="invalid">
+
+```html
+<!-- ❌ Hardcoded strings, inconsistent styling -->
+<h1>Products</h1>
+<script>
+    fetch("/api/products").then(...); // ❌ No proxy, no localization
+</script>
+```
+</example>

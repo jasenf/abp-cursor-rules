@@ -1,0 +1,146 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: >
+  Testing Layer rules for ABP Framework projects. Covers unit testing, integration testing,
+  use of ABP's test base classes, isolation, mocking, and testing structure best practices.
+globs:
+  - "**/Test*/**/*.cs"
+  - "**/Tests/**/*.cs"
+alwaysApply: false
+---
+
+# ABP Framework Testing Layer Rules
+
+These rules enforce a consistent and effective testing strategy for ABP-based applications,
+ensuring maintainability, isolation, and reliability across all modules.
+
+**Library Information:**
+- Name: abp-testing-layer
+- Tags: abp, testing, xunit, unit-test, integration-test, mocking
+
+---
+
+## 1. Test Structure & Organization
+
+### 1.1 Separate Unit and Integration Tests
+* **Rule:** Organize tests clearly into unit and integration categories, with folder or project-level separation.
+* **Why:** Helps enforce boundaries and reduces accidental coupling.
+
+---
+
+### 1.2 Naming Conventions
+* **Rule:** Use `[ClassName]Tests.cs` for unit tests and `[ClassName]AppService_Tests.cs` or similar for integration.
+* **Why:** Makes it easy to identify test targets.
+
+---
+
+## 2. Unit Testing
+
+### 2.1 Mock External Dependencies
+* **Rule:** Use mocking libraries (e.g., Moq) to isolate unit tests from infrastructure.
+* **Why:** Ensures tests are fast, focused, and reliable.
+
+---
+
+### 2.2 Focus on Behavior
+* **Rule:** Test behavior and outcomes, not implementation details or private methods.
+* **Why:** Promotes resilient, refactor-friendly tests.
+
+---
+
+## 3. Integration Testing
+
+### 3.1 Use ABP's TestBase Classes
+* **Rule:** Derive from `AbpIntegratedTestBase<TStartupModule>` or `AbpTestBase<TStartupModule>` when testing services.
+* **Why:** Provides preconfigured DI container, DB, and ABP modules.
+
+---
+
+### 3.2 Use In-Memory or SQLite DB Where Possible
+* **Rule:** For faster tests, prefer in-memory or SQLite providers unless testing DB-specific logic.
+* **Why:** Speeds up the test cycle.
+
+---
+
+### 3.3 Seed Test Data with IDataSeeder
+* **Rule:** Use test-specific seeders to prep the environment.
+* **Why:** Ensures tests are consistent and repeatable.
+
+---
+
+## 4. Assertions and Test Hygiene
+
+### 4.1 Avoid Over-Asserting
+* **Rule:** Only assert what’s relevant to the test case.
+* **Why:** Reduces noise and false positives during refactoring.
+
+---
+
+### 4.2 Clean Up Data Where Needed
+* **Rule:** Reset state between tests if tests affect shared state.
+* **Why:** Ensures isolation and removes flakiness.
+
+---
+
+## 5. CI & Test Coverage
+
+### 5.1 Integrate with CI Pipeline
+* **Rule:** All tests must run on pull request and main branches.
+* **Why:** Prevents regressions and enforces quality gates.
+
+---
+
+### 5.2 Monitor Code Coverage
+* **Rule:** Track coverage with a tool like Coverlet + ReportGenerator. Aim for at least 80% coverage of application logic.
+* **Why:** Encourages confidence in change safety.
+
+---
+
+## 6. Rationale
+
+These testing rules ensure:
+- Clear separation of test types.
+- Fast, reliable unit tests and comprehensive integration testing.
+- Alignment with ABP's testing tools and approach.
+- Readable, maintainable, and trustworthy test code.
+
+---
+
+## 7. Examples
+
+<example>
+
+```csharp
+public class ProductManagerTests
+{
+    [Fact]
+    public async Task Should_Throw_If_Price_Is_Negative()
+    {
+        var repo = new Mock<IProductRepository>();
+        var manager = new ProductManager(repo.Object);
+
+        await Assert.ThrowsAsync<BusinessException>(() => manager.CreateAsync("Test", -5));
+    }
+}
+```
+</example>
+
+<example type="invalid">
+
+```csharp
+public class ProductTests
+{
+    [Fact]
+    public void BadTest()
+    {
+        var db = new MyDbContext(); // ❌ No isolation or mocking
+        var product = db.Products.First(); // ❌ Depends on real data
+        Assert.Equal("Widget", product.Name); // ❌ Fragile
+    }
+}
+```
+</example>

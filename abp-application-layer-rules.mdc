@@ -1,0 +1,155 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: >
+  Application Layer rules for ABP Framework projects using Domain-Driven Design (DDD).
+  Focuses on DTO integrity, application service design, validation, authorization,
+  and correct mapping strategies between layers.
+globs:
+  - "**/Application/**/*.cs"
+alwaysApply: false
+---
+
+# ABP Framework Application Layer Rules
+
+This ruleset defines how application services and DTOs should be structured and used in ABP projects,
+ensuring a clean separation of concerns between UI and domain layers and leveraging ABP's features for performance,
+security, and consistency.
+
+**Library Information:**
+- Name: abp-application-layer
+- Tags: abp, ddd, application, dto, services, mapping
+
+---
+
+## 1. DTOs (Data Transfer Objects)
+
+### 1.1 DTOs Should Not Contain Business Logic
+* **Rule:** DTOs are pure data containers used for input/output. Avoid any business logic, decisions, or calculations.
+* **Why:** Logic belongs in the domain layer or services. DTOs should be serializable, minimal, and flat.
+
+```csharp
+public class CreateProductDto
+{
+    public string Name { get; set; }
+    public decimal Price { get; set; }
+}
+```
+
+---
+
+### 1.2 Validate DTOs Explicitly
+* **Rule:** Use data annotations or FluentValidation to enforce constraints (e.g., [Required], [StringLength], custom validators).
+* **Why:** Ensures input safety before reaching domain logic.
+
+```csharp
+public class CreateProductDto
+{
+    [Required]
+    [StringLength(ProductConsts.MaxNameLength)]
+    public string Name { get; set; }
+
+    [Range(0.01, double.MaxValue)]
+    public decimal Price { get; set; }
+}
+```
+
+---
+
+## 2. Application Services
+
+### 2.1 Follow ABP Application Service Patterns
+* **Rule:** Derive from `ApplicationService` or `CrudAppService`. Avoid writing controller logic here.
+* **Why:** Keeps services reusable across API, UI, and background jobs.
+
+### 2.2 Use Dependency Injection
+* **Rule:** Inject repositories or domain services via constructors.
+* **Why:** Follows IoC principles and makes testing easier.
+
+---
+
+## 3. Mapping and Data Flow
+
+### 3.1 Use AutoMapper or ObjectMapper
+* **Rule:** Map between entities and DTOs using AutoMapper or ABP’s `ObjectMapper<TModule>`.
+* **Why:** Prevents manual mapping logic clutter and ensures consistent transformations.
+
+### 3.2 Mapping Profiles Go in Application Layer
+* **Rule:** Define mapping profiles in the Application project. Use meaningful naming like `ProductApplicationAutoMapperProfile`.
+
+---
+
+## 4. Authorization
+
+### 4.1 Use [Authorize] or Permission Names
+* **Rule:** Enforce permissions at method level using `[Authorize]` or `PermissionNames.*` constants.
+* **Why:** Keeps service logic secure and explicit.
+
+```csharp
+[Authorize(ProductPermissions.Create)]
+public async Task CreateAsync(CreateProductDto input)
+{
+    ...
+}
+```
+
+---
+
+## 5. Exception Handling
+
+### 5.1 Let ABP Handle Exceptions
+* **Rule:** Don’t catch exceptions just to return error strings. Throw `BusinessException` where appropriate.
+* **Why:** ABP’s pipeline transforms exceptions into localized, user-friendly responses.
+
+---
+
+## 6. Rationale
+
+These rules ensure that:
+- DTOs remain clean and portable.
+- Application services stay thin and testable.
+- Business logic lives where it belongs: in the domain layer.
+- Authorization and validation are centralized and consistent.
+
+---
+
+## 7. Examples
+
+<example>
+
+```csharp
+// ✅ Application Service Example
+public class ProductAppService : ApplicationService, IProductAppService
+{
+    private readonly IProductRepository _repository;
+
+    public ProductAppService(IProductRepository repository)
+    {
+        _repository = repository;
+    }
+
+    public async Task<ProductDto> GetAsync(Guid id)
+    {
+        var product = await _repository.GetAsync(id);
+        return ObjectMapper.Map<Product, ProductDto>(product);
+    }
+}
+```
+</example>
+
+<example type="invalid">
+
+```csharp
+// ❌ Violates multiple rules: logic in DTO, no mapping, no DI
+public class ProductDto
+{
+    public string Name { get; set; }
+    public decimal Price { get; set; }
+
+    public decimal CalculateTax() => Price * 0.2M; // ❌ business logic in DTO
+}
+```
+</example>
