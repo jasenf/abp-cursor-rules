@@ -1,0 +1,56 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# ABP Tag Helpers and Forms Guidelines
+
+## Critical Rules
+
+- Use abp-dynamic-form for automatic form generation based on models
+- Implement abp-input tag helpers for form inputs with built-in validation
+- Apply proper form validation using ABP's validation system
+- Utilize Bootstrap tag helpers for consistent UI components
+- Implement client-side validation using ABP's validation infrastructure
+- Use modal tag helpers for dialog implementations
+- Apply proper localization in forms and UI components
+- Implement AJAX form submission using ABP's form helpers
+
+## Examples
+
+<example>
+```html
+<!-- Proper use of ABP tag helpers and forms -->
+<abp-dynamic-form abp-model="@Model.MyViewModel">
+    <abp-modal>
+        <abp-modal-header title="@L["CreateBook"]"></abp-modal-header>
+        <abp-modal-body>
+            <abp-input asp-for="MyViewModel.Name" />
+            <abp-input asp-for="MyViewModel.Price" />
+            <abp-select asp-for="MyViewModel.CategoryId" 
+                       asp-items="@Model.Categories"/>
+        </abp-modal-body>
+        <abp-modal-footer buttons="@(AbpModalButtons.Save|AbpModalButtons.Cancel)">
+        </abp-modal-footer>
+    </abp-modal>
+</abp-dynamic-form>
+```
+</example>
+
+<example type="invalid">
+```html
+<!-- Don't use raw HTML forms without ABP tag helpers -->
+<form method="post">
+    <div class="form-group">
+        <label for="Name">Name:</label>
+        <input type="text" class="form-control" id="Name" name="Name" />
+    </div>
+    <div class="form-group">
+        <label for="Price">Price:</label>
+        <input type="number" class="form-control" id="Price" name="Price" />
+    </div>
+    <button type="submit" class="btn btn-primary">Save</button>
+</form>
+```
+</example>
+

@@ -1,0 +1,74 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# ABP JavaScript APIs and Client-Side Features Guidelines
+
+## Critical Rules
+
+- Use Dynamic JavaScript API Client Proxies for server communication
+- Implement proper bundling and minification for JavaScript resources
+- Utilize ABP's notification system for user messages
+- Apply proper client-side localization using ABP's l10n system
+- Use ABP's permission checker in JavaScript code
+- Implement proper modal management using ABP's modal manager
+- Use ABP's settings API for client-side configuration
+- Apply proper DataTables integration for grid implementations
+
+## Examples
+
+<example>
+```javascript
+// Proper use of ABP JavaScript features
+// Using dynamic API proxies
+const bookService = acme.bookStore.books.book;
+const result = await bookService.getList({
+    maxResultCount: 10,
+    skipCount: 0,
+    filter: ''
+});
+
+// Using notifications
+abp.notify.success('Successfully saved!');
+
+// Checking permissions
+if (await abp.auth.isGranted('BookStore.Books.Create')) {
+    // Perform action
+}
+
+// Using modals
+abp.modals.open({
+    type: 'acme.bookStore.createBook',
+    title: 'Create Book'
+}).then(function(result) {
+    if (result.success) {
+        abp.notify.success('Book created successfully');
+    }
+});
+```
+</example>
+
+<example type="invalid">
+```javascript
+// Don't use raw AJAX calls
+$.ajax({
+    url: '/api/books',
+    method: 'GET',
+    success: function(result) {
+        // Direct DOM manipulation without ABP features
+        $('#bookList').html(result);
+    }
+});
+
+// Don't use raw alert/confirm
+alert('Success!');
+confirm('Are you sure?');
+
+// Don't bypass permission system
+$('#createButton').click(function() {
+    // Directly performing action without permission check
+});
+```
+</example>
+

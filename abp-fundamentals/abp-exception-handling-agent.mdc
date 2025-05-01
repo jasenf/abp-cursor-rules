@@ -1,0 +1,70 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: This rule governs the implementation of exception handling in ABP Framework applications. It should be applied when: (1) Implementing new error handling logic, (2) Managing business exceptions, (3) Creating custom exception types, (4) Working with exception middleware and filters, or (5) Setting up error handling across different layers of the application. The rule ensures consistent error handling practices, proper exception management, and maintainable error handling code across the application.
+globs: **/*.cs, **/*.ts, **/*.js
+alwaysApply: false
+--- 
+
+
+# ABP Exception Handling Guidelines
+
+## Critical Rules
+
+- Use `BusinessException` for domain/business logic errors that are expected and need to be handled gracefully
+- Use `UserFriendlyException` when the error message should be directly shown to the user without localization
+- Follow the error code format `<code-namespace>:<error-code>` (e.g., `Volo.Qa:010002`) for all business exceptions
+- Configure error code namespace to localization resource mapping in module configuration
+- Never expose sensitive information or stack traces in production environments
+- Use `IUserFriendlyException` interface for exceptions that should pass through to the client unchanged
+- Store parameterized error message data using the `.WithData()` method
+- Map custom HTTP status codes using `AbpExceptionHttpStatusCodeOptions` when default mappings are insufficient
+- Always provide localization resources for error codes used in the application
+- Use `ExceptionSubscriber` for custom exception handling and logging requirements
+
+## Examples
+
+<example>
+// Proper business exception with error code and localization
+throw new BusinessException("Volo.Orders:010042")
+    .WithData("OrderId", orderId)
+    .WithData("Status", status);
+
+// Module configuration for error localization
+services.Configure<AbpExceptionLocalizationOptions>(options =>
+{
+    options.MapCodeNamespace("Volo.Orders", typeof(OrdersResource));
+});
+
+// Localization resource entry
+{
+    "Volo.Orders:010042": "Order {OrderId} cannot be cancelled in {Status} status!"
+}
+
+// Custom HTTP status code mapping
+services.Configure<AbpExceptionHttpStatusCodeOptions>(options =>
+{
+    options.Map("Volo.Orders:010042", HttpStatusCode.Conflict);
+});
+</example>
+
+<example type="invalid">
+// ❌ Throwing generic exceptions without proper error codes
+throw new Exception("Order cannot be cancelled");
+
+// ❌ Hardcoding error messages without localization
+throw new BusinessException("Order 12345 cannot be cancelled");
+
+// ❌ Using string concatenation for parameterized messages
+throw new BusinessException($"Order {orderId} status {status} invalid");
+
+// ❌ Exposing technical details to end users
+throw new UserFriendlyException(ex.StackTrace);
+
+// ❌ Missing localization resource mapping
+throw new BusinessException("Volo.Orders:010042"); // Without configuring MapCodeNamespace
+</example>
+

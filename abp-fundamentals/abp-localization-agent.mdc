@@ -1,0 +1,135 @@
+---
+description: Localization and content display to end users
+globs: 
+alwaysApply: false
+---
+---
+description: This rule governs ABP Framework localization implementation across the application. It should be applied when: (1) Setting up new localization resources, (2) Adding or modifying translations, (3) Implementing localization in UI components, (4) Configuring localization modules, or (5) Working with multi-language features. The rule ensures consistent localization structure, proper resource organization, and maintainable translation management.
+globs:
+alwaysApply: false
+---
+
+# ABP Localization Standards
+
+## Critical Rules
+
+### Project Structure
+- Place localization resources in the `{ProjectName}.Domain.Shared` project
+- Create resource classes under `/Localization` directory
+- Store JSON translation files under `/Localization/{ResourceName}` directory
+- Configure localization in the `{ProjectName}DomainSharedModule` class
+- For MAUI/mobile apps, create a `LocalizationResourceManager` in the app project
+- For web apps, use the `L` property in page models under `{ProjectName}.Web` project
+- Database localization tables should follow ABP's schema (`AbpLocalizationResources`, `AbpLocalizationTexts`)
+
+### Resource Implementation
+- Create localization resources as plain classes with `[LocalizationResourceName("ResourceName")]` attribute
+- Follow the JSON format: `{ "culture": "en", "texts": { "key": "value" } }`
+- Use descriptive, hierarchical keys (e.g., "Menu:Home", "Permission:Dashboard")
+- Always provide default English (en) translations as the fallback culture
+- Inherit from existing resources using `[InheritResource(typeof(ParentResource))]` when extending modules
+
+### Configuration and Usage
+- Configure localization in module class using `AbpLocalizationOptions`
+- Use `IStringLocalizer<TResource>` for server-side localization
+- Use `IHtmlLocalizer<TResource>` for Razor views/pages
+- Utilize the `L` property in ABP base classes (e.g., ApplicationService, AbpController)
+- Register supported languages in `AbpLocalizationOptions.Languages`
+- Keep translation keys consistent across all language files
+- Use format parameters with numbered placeholders (e.g., "Hello {0}")
+- Store HTML content properly escaped in JSON files
+- Follow ABP's virtual file system conventions for embedded resources
+
+## Examples
+
+<example>
+```csharp
+// Domain.Shared/Localization/MyAppResource.cs
+[LocalizationResourceName("MyApp")]
+public class MyAppResource
+{
+}
+
+// Domain.Shared/MyAppDomainSharedModule.cs
+public class MyAppDomainSharedModule : AbpModule
+{
+    public override void ConfigureServices(ServiceConfigurationContext context)
+    {
+        Configure<AbpVirtualFileSystemOptions>(options =>
+        {
+            options.FileSets.AddEmbedded<MyAppDomainSharedModule>();
+        });
+
+        Configure<AbpLocalizationOptions>(options =>
+        {
+            options.Resources
+                .Add<MyAppResource>("en")
+                .AddVirtualJson("/Localization/MyApp");
+                
+            options.Languages.Add(new LanguageInfo("es", "es", "Español"));
+        });
+    }
+}
+
+// Domain.Shared/Localization/MyApp/en.json
+{
+  "culture": "en",
+  "texts": {
+    "Menu:Home": "Home",
+    "Welcome:{0}": "Welcome {0}!",
+    "Permission:Dashboard": "Dashboard Access"
+  }
+}
+
+// Web/Pages/MyPageModel.cs
+public class MyPageModel : AbpPageModel
+{
+    public MyPageModel()
+    {
+        LocalizationResourceType = typeof(MyAppResource);
+    }
+    
+    public void OnGet()
+    {
+        var welcomeMessage = L["Welcome:{0}", CurrentUser.Name];
+    }
+}
+</example>
+
+<example type="invalid">
+```csharp
+// DON'T: Wrong project location
+// Web/Localization/MyAppResource.cs
+public class MyAppResource
+{
+}
+
+// DON'T: Missing module configuration
+public class MyAppDomainSharedModule : AbpModule
+{
+    public override void ConfigureServices(ServiceConfigurationContext context)
+    {
+        // Missing localization configuration
+    }
+}
+
+// DON'T: Incorrect JSON structure
+{
+  "texts": {  // Missing culture
+    "menuHome": "Home",  // Inconsistent key format
+    "Welcome": "Welcome {name}"  // Wrong placeholder format
+  }
+}
+
+// DON'T: Direct string usage
+public class MyController : AbpController
+{
+    public string GetWelcome()
+    {
+        return "Welcome to my app";  // Should use L["Welcome"]
+    }
+}
+```
+</example>
+
+

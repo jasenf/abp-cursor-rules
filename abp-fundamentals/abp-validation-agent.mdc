@@ -1,0 +1,171 @@
+---
+description: Data validation for user input and API parameters
+globs: 
+alwaysApply: false
+---
+---
+description: This rule governs validation practices in ABP.io applications. It should be applied when: (1) Creating or modifying DTOs, (2) Implementing validation logic in application services, (3) Working with FluentValidation, (4) Handling user input validation, or (5) Implementing custom validation logic. The rule ensures consistent validation approaches, proper error handling, and maintainable validation code across the application.
+globs: **/*.cs
+alwaysApply: false
+---
+# ABP.io Validation Best Practices
+
+## Critical Rules
+
+- Always implement validation at the DTO level using Data Annotations or FluentValidation
+- Use `IValidationEnabled` interface for classes that require automatic validation
+- Implement `IValidatableObject` for complex validation scenarios that require access to multiple properties
+- Localize validation error messages using the ABP localization system
+- Use `AbpValidationException` for throwing validation errors in custom validation logic
+- Implement FluentValidation validators in a separate class inheriting from `AbstractValidator<T>`
+- Place validators in the same namespace as their corresponding DTOs with a "Validator" suffix
+- Use `[DisableValidation]` attribute only when absolutely necessary and document the reason
+- For custom validation logic requiring DI services, use `IObjectValidationContributor`
+- Always validate entities before saving to the database using domain-driven validation rules
+
+## Validation Locations
+
+1. **DTO Validation (Application.Contracts Layer)**
+   - Use Data Annotations for simple validations
+   - Use FluentValidation for complex rules
+   - Implement `IValidatableObject` for cross-property validation
+
+2. **Domain Validation (Domain Layer)**
+   - Implement domain-specific validation in entity constructors
+   - Use domain services for complex validation logic
+   - Throw domain exceptions for business rule violations
+
+3. **Application Service Validation**
+   - Leverage `IValidationEnabled` for automatic validation
+   - Implement custom validation using `IObjectValidator`
+   - Handle validation exceptions appropriately
+
+## Examples
+
+<example>
+```csharp
+// DTO with Data Annotations
+public class CreateBookDto
+{
+    [Required]
+    [StringLength(100)]
+    public string Name { get; set; }
+
+    [Required]
+    [StringLength(1000)]
+    public string Description { get; set; }
+
+    [Range(0, 999.99)]
+    public decimal Price { get; set; }
+}
+
+// FluentValidation Implementation
+public class CreateBookDtoValidator : AbstractValidator<CreateBookDto>
+{
+    public CreateBookDtoValidator()
+    {
+        RuleFor(x => x.Name)
+            .NotEmpty()
+            .MaximumLength(100);
+            
+        RuleFor(x => x.Description)
+            .NotEmpty()
+            .MaximumLength(1000);
+            
+        RuleFor(x => x.Price)
+            .InclusiveBetween(0, 999.99);
+    }
+}
+
+// Custom Validation with IValidatableObject
+public class UpdateBookDto : IValidatableObject
+{
+    public string Name { get; set; }
+    public string Description { get; set; }
+    
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (Name == Description)
+        {
+            yield return new ValidationResult(
+                "Name and Description cannot be the same!",
+                new[] { nameof(Name), nameof(Description) }
+            );
+        }
+    }
+}
+
+// Domain Entity Validation
+public class Book : AggregateRoot<Guid>
+{
+    public string Name { get; private set; }
+    
+    private Book() { }
+    
+    public Book(string name)
+    {
+        SetName(name);
+    }
+    
+    private void SetName(string name)
+    {
+        if (name.IsNullOrWhiteSpace())
+        {
+            throw new BusinessException("BookDomainErrorCodes.NameRequired");
+        }
+        
+        if (name.Length > 100)
+        {
+            throw new BusinessException("BookDomainErrorCodes.NameTooLong");
+        }
+        
+        Name = name;
+    }
+}
+```
+</example>
+
+<example type="invalid">
+```csharp
+// DON'T: Mixing validation concerns
+public class BookDto
+{
+    public string Name { get; set; }
+    
+    // Wrong: Domain validation in DTO
+    public void ValidateName()
+    {
+        if (string.IsNullOrEmpty(Name))
+        {
+            throw new Exception("Invalid name!");
+        }
+    }
+}
+
+// DON'T: Using raw exceptions for validation
+public class BookService
+{
+    public async Task CreateAsync(CreateBookDto input)
+    {
+        if (input.Name == null)
+        {
+            throw new Exception("Name is required"); // Wrong: Use AbpValidationException
+        }
+    }
+}
+
+// DON'T: Validation logic in application service
+public class BookAppService : ApplicationService
+{
+    public async Task CreateAsync(CreateBookDto input)
+    {
+        // Wrong: Validation logic should be in DTO or validator
+        if (input.Price < 0 || input.Price > 999.99)
+        {
+            throw new AbpValidationException("Invalid price!");
+        }
+    }
+}
+```
+</example>
+

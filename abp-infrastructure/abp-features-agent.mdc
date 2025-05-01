@@ -1,0 +1,189 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# ABP Features Implementation Guide
+
+## Critical Rules
+
+- Create feature providers in the Domain layer of each module:
+  - {ModuleName}.Domain/Features/{ModuleName}FeatureDefinitionProvider.cs
+  - Inherit from FeatureDefinitionProvider
+  - Register in DependsOn attribute of Domain module
+
+- Follow feature naming convention:
+  - {ModuleName}.{FeatureGroup}.{FeatureName}
+  - Example: "Boast.Documents.MaxCount"
+
+- Implement feature localization in Domain.Shared layer:
+  - {ModuleName}.Domain.Shared/Localization/{ModuleName}/en.json
+  - Use "Features" section for all feature-related texts
+
+- Add feature checks in:
+  - Application layer services: Use IFeatureChecker
+  - Controllers: Use RequireFeaturesAttribute
+  - Blazor/MVC views: Use abpFeature directive
+
+- Store feature values using IFeatureManager in:
+  - {ModuleName}.Application/Features/{FeatureGroup}FeatureManager.cs
+
+- Implement feature management UI components in:
+  - {ModuleName}.Web/Pages/Features/
+  - {ModuleName}.Web/Components/FeatureManagement/
+
+## Examples
+
+<example>
+```csharp
+// Boast.Domain/Features/BoastFeatureDefinitionProvider.cs
+namespace Boast.Features
+{
+    public class BoastFeatureDefinitionProvider : FeatureDefinitionProvider
+    {
+        public override void Define(IFeatureDefinitionContext context)
+        {
+            var documents = context.AddGroup(BoastFeatures.GroupName);
+
+            documents.AddFeature(
+                BoastFeatures.MaxDocumentCount,
+                defaultValue: "10",
+                displayName: L("Features:MaxDocumentCount"),
+                valueType: new FreeTextStringValueType(
+                    new NumericValueValidator(0, 1000)
+                )
+            );
+
+            var exportFeature = documents.AddFeature(
+                BoastFeatures.DocumentExport,
+                defaultValue: "false",
+                displayName: L("Features:DocumentExport"),
+                valueType: new ToggleStringValueType()
+            );
+
+            exportFeature.CreateChild(
+                BoastFeatures.PdfExport,
+                defaultValue: "false",
+                displayName: L("Features:PdfExport"),
+                valueType: new ToggleStringValueType()
+            );
+        }
+
+        private static LocalizableString L(string name)
+        {
+            return LocalizableString.Create<BoastResource>(name);
+        }
+    }
+}
+
+// Boast.Domain.Shared/Features/BoastFeatures.cs
+namespace Boast.Features
+{
+    public static class BoastFeatures
+    {
+        public const string GroupName = "Boast.Documents";
+        public const string MaxDocumentCount = GroupName + ".MaxCount";
+        public const string DocumentExport = GroupName + ".Export";
+        public const string PdfExport = DocumentExport + ".Pdf";
+    }
+}
+
+// Boast.Domain.Shared/Localization/Boast/en.json
+{
+    "Features": {
+        "MaxDocumentCount": "Maximum number of documents",
+        "DocumentExport": "Document export",
+        "PdfExport": "PDF export"
+    }
+}
+
+// Boast.Application/Documents/DocumentAppService.cs
+namespace Boast.Documents
+{
+    public class DocumentAppService : BoastAppService, IDocumentAppService
+    {
+        private readonly IFeatureChecker _featureChecker;
+
+        public async Task<byte[]> ExportToPdfAsync(Guid id)
+        {
+            if (!await _featureChecker.IsEnabledAsync(BoastFeatures.PdfExport))
+            {
+                throw new BusinessException(BoastDomainErrorCodes.PdfExportNotEnabled);
+            }
+            // Export logic
+        }
+    }
+}
+
+// Boast.Web/Pages/Documents/Index.cshtml
+@page
+@using Boast.Features
+@inject IFeatureChecker FeatureChecker
+<abp-card>
+    <abp-card-body>
+        @if (await FeatureChecker.IsEnabledAsync(BoastFeatures.PdfExport))
+        {
+            <abp-button text="Export to PDF" icon="file-pdf" />
+        }
+    </abp-card-body>
+</abp-card>
+```
+</example>
+
+<example type="invalid">
+```csharp
+// Bad: Feature definition in wrong layer
+// SomeService.cs in Application layer
+public class SomeService
+{
+    private readonly IFeatureDefinitionContext _context;
+    
+    public void DefineFeatures()
+    {
+        // WRONG: Features should be defined in Domain layer
+        _context.AddFeature("Export");
+    }
+}
+
+// Bad: Inconsistent feature naming
+public class BadFeatureProvider : FeatureDefinitionProvider
+{
+    public override void Define(IFeatureDefinitionContext context)
+    {
+        var group = context.AddGroup("App");
+        
+        // WRONG: Doesn't follow naming convention
+        group.AddFeature(
+            "EnableExport",  // Should be "App.Documents.Export"
+            defaultValue: "false"
+        );
+        
+        // WRONG: Hard-coded display name
+        group.AddFeature(
+            "App.Storage",
+            displayName: "Storage Feature" // Should use localization
+        );
+    }
+}
+
+// Bad: Direct database manipulation
+// DocumentManager.cs
+public class DocumentManager
+{
+    private readonly IRepository<FeatureValue> _repository;
+    
+    public async Task EnableExport(Guid tenantId)
+    {
+        // WRONG: Use IFeatureManager instead
+        await _repository.InsertAsync(
+            new FeatureValue(
+                tenantId,
+                "Export",
+                "true"
+            )
+        );
+    }
+}
+```
+</example>
+

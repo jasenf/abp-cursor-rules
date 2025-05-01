@@ -1,0 +1,119 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# ABP Widgets and Page Alerts Guidelines
+
+## Critical Rules
+
+- Use proper widget system for creating reusable components
+- Implement proper widget configuration
+- Apply proper widget styling and layout
+- Use proper widget refresh handling
+- Implement proper page alerts using ABP's alert system
+- Apply proper alert styling and positioning
+- Use proper alert dismissal handling
+- Implement proper widget authorization
+
+## Examples
+
+<example>
+```csharp
+// Widget Implementation
+public class DashboardWidgetViewComponent : AbpViewComponent
+{
+    public IViewComponentResult Invoke()
+    {
+        return View(new DashboardWidgetViewModel
+        {
+            // Widget data
+        });
+    }
+}
+
+[Widget(
+    StyleTypes = new[] { typeof(MyWidgetStyleBundleContributor) },
+    ScriptTypes = new[] { typeof(MyWidgetScriptBundleContributor) }
+)]
+public class MyWidgetComponent : AbpComponentBase
+{
+    protected override void OnInitialized()
+    {
+        // Widget initialization
+    }
+}
+
+// Page Alerts
+public class IndexModel : AbpPageModel
+{
+    public async Task OnGetAsync()
+    {
+        Alerts.Danger("Warning: This action cannot be undone!", "Warning");
+        
+        Alerts.Info(L["InfoMessage"])
+            .WithDismissible(true)
+            .WithIcon("fa fa-info-circle");
+    }
+}
+
+// Widget View
+@using Volo.Abp.AspNetCore.Mvc.UI.Widgets
+@model MyWidgetViewModel
+
+<abp-widget>
+    <abp-card>
+        <abp-card-header>@L["WidgetTitle"]</abp-card-header>
+        <abp-card-body>
+            @* Widget content *@
+        </abp-card-body>
+    </abp-card>
+</abp-widget>
+
+// Widget JavaScript
+var myWidget = {
+    init: function($widget) {
+        var $refreshButton = $widget.find('.refresh-button');
+        
+        $refreshButton.click(function() {
+            abp.widget.refresh($widget);
+        });
+    }
+};
+```
+</example>
+
+<example type="invalid">
+```csharp
+// Don't create non-widget components for dashboard
+public class DashboardComponent : ViewComponent // Don't bypass widget system
+{
+    public IViewComponentResult Invoke()
+    {
+        return View();
+    }
+}
+
+// Don't use raw alerts
+<div class="alert alert-danger">
+    Warning message
+</div>
+
+// Don't manually handle widget refresh
+$('#refreshButton').click(function() {
+    $.get('/api/widget/data', function(response) {
+        $('#widgetContent').html(response);
+    });
+});
+
+// Don't bypass widget authorization
+public class MyWidget : ViewComponent
+{
+    public IViewComponentResult Invoke()
+    {
+        // Don't skip permission checks
+        return View(GetWidgetData());
+    }
+}
+```
+</example>

@@ -1,0 +1,201 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# ABP Navigation and Menus Guidelines
+
+## Critical Rules
+
+- Use menu contributors for adding menu items
+- Implement proper menu item ordering using Order property
+- Apply proper permission checks for menu items using requiredPermissionName
+- Use correct menu hierarchy with parent-child relationships
+- Implement proper icon usage in menu items following the theme's icon system
+- Apply proper localization for menu items using IStringLocalizer
+- Use proper URL generation for menu items with absolute or relative paths
+- Implement proper menu item visibility rules using isVisible delegate
+- Use StandardMenus constants for standard menu names
+- Implement proper breadcrumb management using PageLayout.Content.BreadCrumb
+- Handle dynamic menu items based on application state
+- Use proper menu item targeting (_blank, _self, etc.)
+- Implement proper menu caching strategies
+- Handle multi-tenancy scenarios in menu configuration
+
+## Examples
+
+<example>
+```csharp
+// Menu Contributor Implementation
+public class BookStoreMenuContributor : IMenuContributor
+{
+    private readonly ICurrentTenant _currentTenant;
+    
+    public BookStoreMenuContributor(ICurrentTenant currentTenant)
+    {
+        _currentTenant = currentTenant;
+    }
+
+    public async Task ConfigureMenuAsync(MenuConfigurationContext context)
+    {
+        if (context.Menu.Name == StandardMenus.Main)
+        {
+            await ConfigureMainMenuAsync(context);
+        }
+    }
+
+    private async Task ConfigureMainMenuAsync(MenuConfigurationContext context)
+    {
+        var l = context.GetLocalizer<BookStoreResource>();
+        
+        // First level menu item
+        var bookStoreMenu = new ApplicationMenuItem(
+            "BookStore",
+            l["Menu:BookStore"],
+            icon: "fas fa-book",
+            order: 1000
+        );
+
+        context.Menu.AddItem(bookStoreMenu);
+
+        // Second level menu item with permission check
+        bookStoreMenu.AddItem(
+            new ApplicationMenuItem(
+                "BookStore.Books",
+                l["Menu:Books"],
+                url: "/Books",
+                icon: "fas fa-book-open",
+                order: 1001,
+                requiredPermissionName: BookStorePermissions.Books.Default,
+                target: "_self",
+                isVisible: async context => await _currentTenant.IsAvailable()
+            )
+        );
+
+        // Add custom parameters
+        bookStoreMenu.AddItem(
+            new ApplicationMenuItem(
+                "BookStore.Reports",
+                l["Menu:Reports"],
+                url: "/Reports",
+                icon: "fas fa-chart-bar"
+            ).WithParameters(
+                new Dictionary<string, object>
+                {
+                    { "type", "monthly" },
+                    { "format", "pdf" }
+                }
+            )
+        );
+    }
+}
+
+// Breadcrumb Configuration
+public class BookDetailsModel : AbpPageModel
+{
+    public async Task OnGetAsync(Guid id)
+    {
+        // Set page title
+        PageLayout.Content.Title = L["BookDetails"];
+
+        // Configure breadcrumbs
+        PageLayout.Content.BreadCrumb.Add(L["Menu:BookStore"]);
+        PageLayout.Content.BreadCrumb.Add(L["Menu:Books"], "/Books");
+        PageLayout.Content.BreadCrumb.Add(L["BookDetails"]);
+
+        // Set menu item as active
+        PageLayout.Menu.SetMenuItemActive("/Books");
+    }
+}
+
+// Menu Rendering in Layout
+@await Component.InvokeAsync(typeof(MenuViewComponent), new
+{
+    menuName = StandardMenus.Main,
+    filterByUserPermission = true
+})
+```
+</example>
+
+<example type="invalid">
+```csharp
+// ❌ Don't hardcode menu items in views
+<ul class="nav">
+    <li>
+        <a href="/books">Books</a> // Missing localization and permission check
+    </li>
+</ul>
+
+// ❌ Don't bypass menu contributor system
+public class Startup
+{
+    public void ConfigureServices(IServiceCollection services)
+    {
+        // Don't manually add menu items here
+        services.Configure<AbpNavigationOptions>(options =>
+        {
+            options.MainMenus.Add(new NavigationMenu("Books", "/books"));
+        });
+    }
+}
+
+// ❌ Don't use static breadcrumbs
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item">Home</li>
+        <li class="breadcrumb-item">Books</li>
+    </ol>
+</nav>
+
+// ❌ Don't hardcode permissions without constants
+new ApplicationMenuItem(
+    "Books",
+    "Books", // Missing localization
+    requiredPermissionName: "Books.Read" // Use permission constants
+)
+
+// ❌ Don't mix menu configuration with business logic
+public class BooksController : AbpController
+{
+    public IActionResult Index()
+    {
+        // Don't configure menus here
+        ViewBag.MenuItems = new[] { new MenuItem("Books", "/books") };
+        return View();
+    }
+}
+```
+</example>
+
+## Menu Configuration Best Practices
+
+### 1. Menu Structure
+- Use proper hierarchy
+- Implement correct ordering
+- Apply consistent naming
+- Handle dynamic items
+
+### 2. Permission Management
+- Check user permissions
+- Use permission constants
+- Handle multi-tenancy
+- Implement visibility rules
+
+### 3. Localization
+- Use string localizers
+- Handle culture changes
+- Implement fallbacks
+- Support RTL languages
+
+### 4. Navigation State
+- Handle active items
+- Manage breadcrumbs
+- Support deep linking
+- Handle route parameters
+
+### 5. Performance
+- Implement caching
+- Handle async operations
+- Optimize rendering
+- Manage menu state
+

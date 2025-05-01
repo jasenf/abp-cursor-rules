@@ -1,0 +1,111 @@
+---
+description: Authorization is used to check if a user is allowed to perform some specific operations in the application
+globs: 
+alwaysApply: false
+---
+---
+description: `This rule governs the implementation of authorization in ABP Framework applications. It should be applied when: (1) Implementing new authorization checks, (2) Managing permissions, (3) Extending the authorization system, (4) Working with claims and authorization services, or (5) Setting up authorization in different UI frameworks. The rule ensures consistent security practices, proper permission management, and maintainable authorization code across the application.
+globs: **/*.cs, **/*.ts, **/*.js
+alwaysApply: false
+---
+
+# ABP Authorization Fundamentals
+
+## Critical Rules
+
+- ALWAYS use permission definitions in a centralized PermissionDefinitionProvider class
+- ALWAYS prefer declarative [Authorize] attributes over imperative checks when possible
+- MUST implement IPermissionDefinitionProvider for defining new permissions
+- MUST group related permissions using AddGroup() in permission definitions
+- MUST use IAuthorizationService for conditional/runtime permission checks
+- MUST throw AbpAuthorizationException when authorization fails in services
+- MUST use CheckAsync() extension method instead of raw AuthorizeAsync() calls
+- MUST implement IAbpClaimsPrincipalContributor for custom claims
+- MUST register custom permission value providers in AbpPermissionOptions
+- NEVER hardcode permission names as strings - use PermissionDefinitionProvider constants
+- ALWAYS add custom claims to RequestedClaims when using IdentityServer
+- MUST handle authorization failures appropriately in UI components
+
+## Examples
+
+<example>
+  ```csharp
+  // Permission Definition
+  public class BookStorePermissionDefinitionProvider : PermissionDefinitionProvider
+  {
+      public override void Define(IPermissionDefinitionContext context)
+      {
+          var bookStoreGroup = context.AddGroup("BookStore");
+          
+          bookStoreGroup.AddPermission("BookStore.Books.Create");
+      }
+  }
+
+  // Service Usage
+  public class BookAppService : ApplicationService
+  {
+      [Authorize("BookStore.Books.Create")]
+      public async Task CreateAsync(CreateBookDto input)
+      {
+          // Implementation
+      }
+
+      public async Task UpdateAsync(UpdateBookDto input)
+      {
+          await AuthorizationService.CheckAsync("BookStore.Books.Edit");
+          // Implementation
+      }
+  }
+
+  // Custom Claims
+  public class CustomClaimsPrincipalContributor : IAbpClaimsPrincipalContributor
+  {
+      public async Task ContributeAsync(AbpClaimsPrincipalContributorContext context)
+      {
+          var identity = context.ClaimsPrincipal.Identities.FirstOrDefault();
+          identity?.AddClaim(new Claim("CustomClaim", "Value"));
+      }
+  }
+  ```
+</example>
+
+<example type="invalid">
+  ```csharp
+  // DON'T: Hardcoded permission strings
+  public class BookService
+  {
+      public async Task CreateBook()
+      {
+          if (await _authService.IsGrantedAsync("CreateBook"))
+          {
+              // Implementation
+          }
+      }
+  }
+
+  // DON'T: Direct authorization without proper error handling
+  public class AuthorService
+  {
+      public async Task DeleteAuthor(int id)
+      {
+          var result = await AuthorizationService.AuthorizeAsync("Authors.Delete");
+          if (!result.Succeeded)
+          {
+              return; // Missing proper error handling
+          }
+      }
+  }
+
+  // DON'T: Missing permission grouping
+  public class PermissionProvider : PermissionDefinitionProvider
+  {
+      public override void Define(IPermissionDefinitionContext context)
+      {
+          context.AddPermission("CreateBook");
+          context.AddPermission("EditBook");
+          // Permissions should be grouped
+      }
+  }
+  ```
+</example>
+

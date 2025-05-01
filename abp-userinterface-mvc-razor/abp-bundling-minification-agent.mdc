@@ -1,0 +1,396 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# ABP Bundling and Minification Guidelines
+
+## Critical Rules
+
+- Use ABP's bundling system for resource management
+- Configure proper bundle names and ordering
+- Implement proper minification settings
+- Use proper bundle contribution methods
+- Handle bundle dependencies correctly
+- Implement proper bundle caching
+- Use proper environment-specific bundling
+- Handle bundle versioning correctly
+- Implement proper source map handling
+- Use proper bundle placement
+- Handle async and defer loading
+- Implement proper bundle fallbacks
+- Use dynamic bundle contributors
+- Implement bundle inheritance patterns
+- Configure environment-specific settings
+- Handle source maps properly
+
+## Examples
+
+<example>
+```csharp
+// Bundle Configuration in Module with Advanced Features
+public class MyApplicationWebModule : AbpModule
+{
+    public override void ConfigureServices(ServiceConfigurationContext context)
+    {
+        Configure<AbpBundlingOptions>(options =>
+        {
+            // Global bundles with inheritance
+            options.StyleBundles.Configure(
+                StandardBundles.Styles.Global,
+                bundle =>
+                {
+                    // Add base theme bundles
+                    bundle.AddBaseBundles(StandardBundles.Styles.Theme);
+                    
+                    // Add contributors
+                    bundle.AddContributors(typeof(GlobalStyleContributor));
+                    
+                    // Add files with environment-specific handling
+                    if (context.Environment.IsDevelopment())
+                    {
+                        bundle.AddFiles(
+                            "/libs/bootstrap/css/bootstrap.css",
+                            "/libs/font-awesome/css/all.css"
+                        );
+                        bundle.AddContributors(typeof(DevStyleContributor));
+                    }
+                    else
+                    {
+                        bundle.AddFiles(
+                            "/libs/bootstrap/css/bootstrap.min.css",
+                            "/libs/font-awesome/css/all.min.css"
+                        );
+                        bundle.AddContributors(typeof(ProdStyleContributor));
+                    }
+                    
+                    // Configure minification
+                    bundle.MinificationIgnoredFiles.Add("/libs/custom/*.css");
+                    
+                    // Configure source maps
+                    bundle.SourceMapEnabled = context.Environment.IsDevelopment();
+                }
+            );
+
+            // Feature-specific bundles with inheritance
+            options.ScriptBundles.Add(
+                "MyFeature",
+                bundle =>
+                {
+                    // Inherit from global bundle
+                    bundle.AddBaseBundles(StandardBundles.Scripts.Global);
+                    
+                    // Add feature-specific files
+                    bundle.AddFiles("/scripts/my-feature/**/*.js");
+                    
+                    // Add dynamic contributors
+                    bundle.AddContributors(typeof(MyFeatureScriptContributor));
+                    
+                    // Configure loading
+                    bundle.Defer = true; // Use defer loading
+                    bundle.LoadingStrategy = BundleLoadingStrategy.Lazy; // Lazy load
+                }
+            );
+        });
+    }
+}
+
+// Dynamic Bundle Contributors
+public class GlobalStyleContributor : BundleContributor
+{
+    public override void ConfigureBundle(BundleConfigurationContext context)
+    {
+        context.Files.AddIfNotContains("/styles/global/main.css");
+        context.Files.AddIfNotContains("/styles/global/theme.css");
+    }
+}
+
+public class MyFeatureScriptContributor : BundleContributor
+{
+    public override void ConfigureBundle(BundleConfigurationContext context)
+    {
+        // Add dependencies
+        context.Files.AddIfNotContains("/libs/jquery-validation/jquery.validate.js");
+        
+        // Add feature files in correct order
+        context.Files.AddIfNotContains("/scripts/my-feature/core.js");
+        context.Files.AddIfNotContains("/scripts/my-feature/validation.js");
+        context.Files.AddIfNotContains("/scripts/my-feature/ui.js");
+    }
+    
+    public override void ConfigureEnvironment(BundleConfigurationContext context, BundleEnvironment environment)
+    {
+        if (environment.IsDevelopment())
+        {
+            context.Files.Add("/scripts/my-feature/debug-helpers.js");
+        }
+    }
+    
+    public override void ConfigureDynamicResources(BundleConfigurationContext context)
+    {
+        // Add dynamic resources based on configuration
+        var options = context.ServiceProvider.GetRequiredService<IOptions<MyFeatureOptions>>();
+        if (options.Value.EnableAdvancedFeatures)
+        {
+            context.Files.Add("/scripts/my-feature/advanced/**/*.js");
+        }
+    }
+}
+
+// Environment-specific Bundle Contributors
+public class DevStyleContributor : BundleContributor
+{
+    public override void ConfigureBundle(BundleConfigurationContext context)
+    {
+        context.Files.AddIfNotContains("/styles/dev-tools.css");
+        context.Files.AddIfNotContains("/styles/debug-panel.css");
+    }
+}
+
+public class ProdStyleContributor : BundleContributor
+{
+    public override void ConfigureBundle(BundleConfigurationContext context)
+    {
+        // Production-specific styles
+        context.Files.AddIfNotContains("/styles/optimized/**/*.css");
+    }
+}
+
+// Layout Implementation with Advanced Bundle Usage
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewBag.Title</title>
+    
+    <abp-style-bundle name="@StandardBundles.Styles.Global">
+        <abp-style src="/libs/bootstrap/css/bootstrap.min.css" />
+        <abp-style src="/libs/font-awesome/css/all.min.css" />
+        <abp-style src="/styles/global.css" version="@AppVersionProvider.Version" />
+    </abp-style-bundle>
+    
+    @RenderSection("styles", required: false)
+</head>
+<body>
+    @RenderBody()
+    
+    <abp-script-bundle name="@StandardBundles.Scripts.Global">
+        <abp-script src="/libs/jquery/jquery.min.js" />
+        <abp-script src="/libs/bootstrap/js/bootstrap.bundle.min.js" />
+        <abp-script src="/scripts/global.js" version="@AppVersionProvider.Version" />
+    </abp-script-bundle>
+    
+    @RenderSection("scripts", required: false)
+</body>
+</html>
+
+// Feature Page with Bundle Inheritance
+@page
+@model MyFeatureModel
+@section styles {
+    <abp-style-bundle name="MyFeature">
+        <abp-style src="/styles/my-feature/main.css" />
+        <abp-style src="/styles/my-feature/components.css" />
+    </abp-style-bundle>
+}
+
+<div class="my-feature">
+    <!-- Feature content -->
+</div>
+
+@section scripts {
+    <abp-script-bundle name="MyFeature" defer="true">
+        <abp-script src="/scripts/my-feature/core.js" />
+        <abp-script src="/scripts/my-feature/validation.js" />
+        <abp-script src="/scripts/my-feature/ui.js" />
+    </abp-script-bundle>
+}
+```
+</example>
+
+<example type="invalid">
+```csharp
+// ❌ Don't manually include scripts and styles
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="/css/site.css" rel="stylesheet" />
+    <link href="/css/feature.css" rel="stylesheet" />
+</head>
+<body>
+    <script src="/js/site.js"></script>
+    <script src="/js/feature.js"></script>
+</body>
+</html>
+
+// ❌ Don't bypass ABP's bundling system
+public class Startup
+{
+    public void Configure(IApplicationBuilder app)
+    {
+        app.UseStaticFiles();
+        // Missing proper bundle configuration
+    }
+}
+
+// ❌ Don't mix bundling approaches
+public class MyModule : AbpModule
+{
+    public override void ConfigureServices(ServiceConfigurationContext context)
+    {
+        // Don't mix with other bundling systems
+        services.AddWebOptimizer(pipeline =>
+        {
+            pipeline.AddCssBundle("/css/bundle.css", "wwwroot/css/**/*.css");
+        });
+    }
+}
+
+// ❌ Don't hardcode bundle paths
+<script src="@Url.Content("~/bundles/myscripts.js")"></script>
+
+// ❌ Don't ignore environment-specific configuration
+public class BundleConfig
+{
+    public static void Configure()
+    {
+        // Missing environment-specific settings
+        // Missing source map configuration
+        // Missing cache busting
+    }
+}
+
+// ❌ Don't implement bundle contributors incorrectly
+public class BadBundleContributor : BundleContributor
+{
+    public override void ConfigureBundle(BundleConfigurationContext context)
+    {
+        // Don't add files without checking
+        context.Files.Add("/scripts/some-file.js");
+        
+        // Don't ignore environment
+        context.Files.Add("/scripts/debug.js");
+        
+        // Don't hardcode paths
+        context.Files.Add("~/wwwroot/scripts/file.js");
+    }
+}
+
+// ❌ Don't mix minification approaches
+public class Startup
+{
+    public void ConfigureServices(IServiceCollection services)
+    {
+        services.Configure<AbpBundlingOptions>(options =>
+        {
+            options.StyleBundles.Configure("Global", bundle =>
+            {
+                // Don't mix minified and non-minified files
+                bundle.AddFiles("/css/site.css");
+                bundle.AddFiles("/css/site.min.css");
+                
+                // Don't ignore source maps
+                bundle.AddFiles("/css/site.min.css");
+                // Missing .map file
+            });
+        });
+    }
+}
+```
+</example>
+
+## Bundling Implementation Guidelines
+
+### 1. Bundle Configuration
+- Use proper naming conventions
+  - Follow standard bundle names
+  - Use feature-specific names
+  - Maintain consistency
+- Configure correct ordering
+  - Handle dependencies
+  - Manage load order
+  - Consider async loading
+- Handle dependencies
+  - Use bundle inheritance
+  - Manage file dependencies
+  - Handle plugin dependencies
+- Manage bundle inheritance
+  - Use base bundles
+  - Configure overrides
+  - Handle conflicts
+
+### 2. Minification
+- Configure proper settings
+  - Set minification options
+  - Handle exclusions
+  - Configure compression
+- Handle source maps
+  - Enable for development
+  - Configure generation
+  - Handle serving
+- Manage exclusions
+  - Identify problematic files
+  - Configure ignore patterns
+  - Document reasons
+- Handle errors
+  - Log minification issues
+  - Provide fallbacks
+  - Debug problems
+
+### 3. Performance
+- Implement proper caching
+  - Configure cache headers
+  - Use versioning
+  - Handle cache busting
+- Configure compression
+  - Enable Gzip/Brotli
+  - Set compression levels
+  - Handle browser support
+- Handle async loading
+  - Use defer attribute
+  - Implement lazy loading
+  - Manage dependencies
+- Optimize bundle size
+  - Split large bundles
+  - Remove unused code
+  - Minimize dependencies
+
+### 4. Environment Handling
+- Configure development mode
+  - Enable source maps
+  - Use unminified files
+  - Enable debugging tools
+- Set up production settings
+  - Use minified files
+  - Optimize bundles
+  - Configure CDN
+- Handle debugging
+  - Enable debug information
+  - Configure logging
+  - Support troubleshooting
+- Manage source maps
+  - Configure generation
+  - Handle serving
+  - Secure sensitive data
+
+### 5. Maintenance
+- Handle versioning
+  - Use cache busting
+  - Manage updates
+  - Track changes
+- Manage updates
+  - Update dependencies
+  - Handle breaking changes
+  - Test thoroughly
+- Monitor performance
+  - Track bundle sizes
+  - Measure load times
+  - Identify bottlenecks
+- Handle bundle conflicts
+  - Resolve dependencies
+  - Manage versions
+  - Document solutions
+
+
+

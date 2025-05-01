@@ -1,0 +1,466 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# ABP DataTables and Grid Components Guidelines
+
+## Critical Rules
+
+- Use abp-datatable tag helper for creating data tables
+- Implement proper server-side processing for large datasets
+- Apply proper column configuration and formatting
+- Use proper action column configuration
+- Implement proper sorting and filtering
+- Apply proper paging configuration
+- Use proper row selection handling
+- Implement proper CRUD operations in data tables
+- Use abp.libs.datatables.normalizeConfiguration for configuration
+- Implement proper permission checks for actions
+- Use proper localization for all text
+- Handle loading and error states properly
+- Implement proper responsive design
+- Use proper data formatting and type handling
+- Implement proper search functionality
+- Handle refresh and state management properly
+- Configure proper export functionality
+- Implement custom column formatters
+- Handle row selection and multi-selection
+- Use proper advanced filtering options
+
+## Examples
+
+<example>
+```html
+<!-- DataTable Definition with Advanced Features -->
+<abp-table striped-rows="true" class="nowrap" id="BooksTable"
+           data-processing="true"
+           data-server-side="true"
+           data-paging="true"
+           data-page-size="10"
+           data-responsive="true"
+           data-select="true"
+           data-buttons="['copy', 'excel', 'pdf', 'csv']">
+    <thead>
+        <tr>
+            <th data-orderable="true" data-name="name" data-priority="1">@L["Name"]</th>
+            <th data-orderable="true" data-name="price" data-priority="2">@L["Price"]</th>
+            <th data-orderable="true" data-name="publishDate">@L["PublishDate"]</th>
+            <th data-orderable="true" data-name="status">@L["Status"]</th>
+            <th data-orderable="false" data-responsivePriority="1">@L["Actions"]</th>
+        </tr>
+    </thead>
+</abp-table>
+
+<!-- Advanced Search Form -->
+<abp-card>
+    <abp-card-body>
+        <form id="SearchForm" class="mb-3">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="NameFilter">@L["Name"]</label>
+                        <input type="text" id="NameFilter" class="form-control" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="MinPrice">@L["MinPrice"]</label>
+                        <input type="number" id="MinPrice" class="form-control" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="MaxPrice">@L["MaxPrice"]</label>
+                        <input type="number" id="MaxPrice" class="form-control" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="Status">@L["Status"]</label>
+                        <select id="Status" class="form-control">
+                            <option value="">@L["All"]</option>
+                            <option value="1">@L["Active"]</option>
+                            <option value="0">@L["Inactive"]</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">@L["Search"]</button>
+        </form>
+    </abp-card-body>
+</abp-card>
+
+<!-- JavaScript Configuration -->
+```javascript
+$(function () {
+    var l = abp.localization.getResource('BookStore');
+    var createModal = new abp.ModalManager(abp.appPath + 'Books/CreateModal');
+    var editModal = new abp.ModalManager(abp.appPath + 'Books/EditModal');
+    var exportManager = new abp.libs.datatables.ExportManager();
+
+    // Define custom formatters
+    var formatters = {
+        price: function(data, type, row) {
+            if (type === 'display') {
+                return `<span class="price-tag">${abp.utils.formatNumber(data, 2)}</span>`;
+            }
+            return data;
+        },
+        date: function(data, type, row) {
+            if (type === 'display') {
+                return luxon.DateTime.fromISO(data).toLocaleString(luxon.DateTime.DATE_SHORT);
+            }
+            return data;
+        },
+        status: function(data, type, row) {
+            if (type === 'display') {
+                return `<span class="badge badge-${data ? 'success' : 'danger'}">${data ? l('Active') : l('Inactive')}</span>`;
+            }
+            return data;
+        }
+    };
+
+    // Initialize DataTable with advanced features
+    var dataTable = $('#BooksTable').DataTable(
+        abp.libs.datatables.normalizeConfiguration({
+            processing: true,
+            serverSide: true,
+            paging: true,
+            searching: false,
+            autoWidth: false,
+            scrollCollapse: true,
+            order: [[0, "asc"]],
+            select: {
+                style: 'multi',
+                selector: 'td:first-child'
+            },
+            buttons: [
+                {
+                    extend: 'collection',
+                    text: l('Export'),
+                    buttons: [
+                        {
+                            extend: 'excel',
+                            text: l('Excel'),
+                            exportOptions: {
+                                columns: [0, 1, 2, 3]
+                            }
+                        },
+                        {
+                            extend: 'pdf',
+                            text: l('PDF'),
+                            exportOptions: {
+                                columns: [0, 1, 2, 3]
+                            }
+                        },
+                        {
+                            extend: 'csv',
+                            text: l('CSV'),
+                            exportOptions: {
+                                columns: [0, 1, 2, 3]
+                            }
+                        }
+                    ]
+                }
+            ],
+            ajax: abp.libs.datatables.createAjax(
+                acme.bookStore.books.book.getList,
+                function() {
+                    return {
+                        name: $('#NameFilter').val(),
+                        minPrice: $('#MinPrice').val(),
+                        maxPrice: $('#MaxPrice').val(),
+                        status: $('#Status').val()
+                    };
+                }
+            ),
+            columnDefs: [
+                {
+                    title: l('Name'),
+                    data: "name",
+                    render: function (data, type, row) {
+                        if (type === 'display') {
+                            return `<a href="/Books/Detail/${row.id}">${abp.utils.htmlEncode(data)}</a>`;
+                        }
+                        return data;
+                    }
+                },
+                {
+                    title: l('Price'),
+                    data: "price",
+                    render: formatters.price
+                },
+                {
+                    title: l('PublishDate'),
+                    data: "publishDate",
+                    render: formatters.date
+                },
+                {
+                    title: l('Status'),
+                    data: "isActive",
+                    render: formatters.status
+                },
+                {
+                    title: l('Actions'),
+                    rowAction: {
+                        items: [
+                            {
+                                text: l('Edit'),
+                                visible: abp.auth.isGranted('BookStore.Books.Edit'),
+                                action: function (data) {
+                                    editModal.open({ id: data.record.id });
+                                }
+                            },
+                            {
+                                text: l('Delete'),
+                                visible: abp.auth.isGranted('BookStore.Books.Delete'),
+                                confirmMessage: function (data) {
+                                    return l(
+                                        'BookDeletionConfirmationMessage',
+                                        data.record.name
+                                    );
+                                },
+                                action: function (data) {
+                                    acme.bookStore.books.book
+                                        .delete(data.record.id)
+                                        .then(function() {
+                                            abp.notify.success(l('SuccessfullyDeleted'));
+                                            dataTable.ajax.reload();
+                                        });
+                                }
+                            },
+                            {
+                                text: l('Preview'),
+                                action: function (data) {
+                                    window.open(`/Books/Preview/${data.record.id}`, '_blank');
+                                }
+                            }
+                        ]
+                    }
+                }
+            ],
+            responsive: {
+                details: {
+                    type: 'column',
+                    target: -1
+                }
+            },
+            language: abp.libs.datatables.getLanguage()
+        })
+    );
+
+    // Handle row selection events
+    dataTable.on('select', function(e, dt, type, indexes) {
+        var selectedData = dataTable.rows(indexes).data().toArray();
+        $('#SelectedCount').text(dataTable.rows({ selected: true }).count());
+        // Enable bulk actions if items are selected
+        if (dataTable.rows({ selected: true }).count() > 0) {
+            $('#BulkActions').removeClass('d-none');
+        }
+    });
+
+    dataTable.on('deselect', function(e, dt, type, indexes) {
+        $('#SelectedCount').text(dataTable.rows({ selected: true }).count());
+        // Disable bulk actions if no items are selected
+        if (dataTable.rows({ selected: true }).count() === 0) {
+            $('#BulkActions').addClass('d-none');
+        }
+    });
+
+    // Handle search form submission
+    $('#SearchForm').submit(function(e) {
+        e.preventDefault();
+        dataTable.ajax.reload();
+    });
+
+    // Handle bulk actions
+    $('#BulkDeleteButton').click(function() {
+        var selectedIds = dataTable.rows({ selected: true }).data()
+            .map(function(item) { return item.id; })
+            .toArray();
+
+        abp.message.confirm(
+            l('BulkDeletionConfirmationMessage', selectedIds.length),
+            function(isConfirmed) {
+                if (isConfirmed) {
+                    acme.bookStore.books.book
+                        .bulkDelete(selectedIds)
+                        .then(function() {
+                            abp.notify.success(l('SuccessfullyDeleted'));
+                            dataTable.ajax.reload();
+                        });
+                }
+            }
+        );
+    });
+
+    // Handle export actions
+    $('#ExportToExcel').click(function() {
+        exportManager.exportToExcel(dataTable);
+    });
+});
+
+// Server-side Implementation
+public class BookAppService : ApplicationService, IBookAppService
+{
+    private readonly IRepository<Book, Guid> _bookRepository;
+
+    public BookAppService(IRepository<Book, Guid> bookRepository)
+    {
+        _bookRepository = bookRepository;
+    }
+
+    public async Task<PagedResultDto<BookDto>> GetListAsync(GetBooksInput input)
+    {
+        var query = _bookRepository
+            .WhereIf(
+                !input.Name.IsNullOrWhiteSpace(),
+                x => x.Name.Contains(input.Name)
+            )
+            .WhereIf(
+                input.MinPrice.HasValue,
+                x => x.Price >= input.MinPrice.Value
+            )
+            .WhereIf(
+                input.MaxPrice.HasValue,
+                x => x.Price <= input.MaxPrice.Value
+            )
+            .WhereIf(
+                input.Status.HasValue,
+                x => x.IsActive == input.Status.Value
+            );
+
+        var totalCount = await AsyncExecuter.CountAsync(query);
+
+        query = query
+            .OrderBy(input.Sorting ?? nameof(Book.Name))
+            .Skip(input.SkipCount)
+            .Take(input.MaxResultCount);
+
+        var books = await AsyncExecuter.ToListAsync(query);
+
+        return new PagedResultDto<BookDto>(
+            totalCount,
+            ObjectMapper.Map<List<Book>, List<BookDto>>(books)
+        );
+    }
+
+    public async Task BulkDeleteAsync(List<Guid> ids)
+    {
+        await _bookRepository.DeleteManyAsync(ids);
+    }
+}
+```
+</example>
+
+<example type="invalid">
+```csharp
+// ❌ Don't use raw HTML tables
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th> <!-- Missing localization -->
+            <th>Price</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model.Items)
+        {
+            <tr>
+                <td>@item.Name</td>
+                <td>@item.Price</td> <!-- Missing proper formatting -->
+            </tr>
+        }
+    </tbody>
+</table>
+
+// ❌ Don't initialize DataTables without ABP integration
+$('#MyTable').DataTable({
+    // Missing ABP configuration normalization
+    ajax: '/api/books',
+    // Missing proper error handling
+    // Missing localization
+    // Missing permission checks
+});
+
+// ❌ Don't implement server-side processing without proper paging
+public class BadBookController : AbpController
+{
+    public IActionResult GetBooks()
+    {
+        // Missing proper paging
+        var books = _bookRepository.GetList();
+        return Json(books);
+    }
+}
+
+// ❌ Don't handle exports manually
+public IActionResult ExportToExcel()
+{
+    // Missing proper export handling
+    var books = _bookRepository.GetList();
+    // Direct Excel generation without ABP integration
+}
+
+// ❌ Don't implement custom formatters without proper type handling
+function formatPrice(price) {
+    // Missing culture-specific formatting
+    return '$' + price;
+}
+```
+</example>
+
+## DataTable Implementation Guidelines
+
+### 1. Configuration
+- Use ABP's configuration normalizer
+- Configure proper server-side processing
+- Set up proper column definitions
+- Configure responsive behavior
+- Set up export options
+- Configure row selection
+
+### 2. Data Operations
+- Implement proper sorting
+- Handle filtering and search
+- Configure proper paging
+- Manage row selection
+- Handle bulk operations
+- Implement export functionality
+
+### 3. Actions and Events
+- Configure row actions
+- Handle CRUD operations
+- Manage modal interactions
+- Handle refresh events
+- Process row selection events
+- Handle export events
+
+### 4. Security and Performance
+- Check user permissions
+- Implement proper caching
+- Handle large datasets
+- Optimize queries
+- Secure export operations
+- Handle bulk operation permissions
+
+### 5. User Experience
+- Show loading states
+- Handle errors gracefully
+- Provide feedback
+- Support responsive design
+- Implement proper formatting
+- Handle selection feedback
+
+### 6. Advanced Features
+- Custom column formatters
+- Row selection and multi-select
+- Export to multiple formats
+- Advanced filtering
+- Bulk operations
+- Custom action buttons
+
+
+
+

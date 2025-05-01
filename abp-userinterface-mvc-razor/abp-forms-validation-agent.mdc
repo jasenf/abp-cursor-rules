@@ -1,0 +1,209 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# ABP Forms and Validation Guidelines
+
+## Critical Rules
+
+- Use ABP Tag Helpers for form elements
+- Implement proper model validation using Data Annotations
+- Use FluentValidation for complex validation rules
+- Implement proper client-side validation
+- Handle validation errors properly on both client and server
+- Use proper form submission handling with AJAX
+- Implement proper form state management
+- Use proper localization for validation messages
+- Implement proper error display using abp-validation-summary
+- Handle dynamic form fields properly
+- Use proper form layout and styling
+- Implement proper form security measures
+
+## Examples
+
+<example>
+```csharp
+// Model with Validation
+public class CreateBookDto
+{
+    [Required]
+    [StringLength(128)]
+    public string Name { get; set; }
+
+    [Required]
+    [Range(0, 999.99)]
+    public decimal Price { get; set; }
+
+    [Required]
+    public Guid CategoryId { get; set; }
+}
+
+// FluentValidation Implementation
+public class CreateBookDtoValidator : AbstractValidator<CreateBookDto>
+{
+    public CreateBookDtoValidator(IBookRepository bookRepository)
+    {
+        RuleFor(x => x.Name)
+            .NotEmpty()
+            .MaximumLength(128)
+            .MustAsync(async (name, cancellation) =>
+            {
+                var exists = await bookRepository.AnyAsync(x => x.Name == name);
+                return !exists;
+            }).WithMessage(L["BookNameAlreadyExists"]);
+
+        RuleFor(x => x.Price)
+            .NotEmpty()
+            .InclusiveBetween(0, 999.99);
+
+        RuleFor(x => x.CategoryId)
+            .NotEmpty()
+            .MustAsync(async (id, cancellation) =>
+            {
+                var exists = await bookRepository.AnyAsync(x => x.CategoryId == id);
+                return exists;
+            }).WithMessage(L["CategoryDoesNotExist"]);
+    }
+}
+
+// Form Implementation
+@page
+@model CreateBookModel
+@{
+    ViewBag.Title = L["CreateBook"];
+}
+
+<form asp-page-handler="Create" id="createBookForm" 
+      data-ajaxForm="true" 
+      data-check-form-on-close="true">
+    <abp-card>
+        <abp-card-header>
+            <h2>@L["CreateBook"]</h2>
+        </abp-card-header>
+        <abp-card-body>
+            <abp-validation-summary />
+            
+            <abp-input asp-for="Book.Name" 
+                      label="@L["Name"]"
+                      required="true" 
+                      max-length="128" />
+                      
+            <abp-input asp-for="Book.Price" 
+                      label="@L["Price"]"
+                      required="true" 
+                      type="number"
+                      min="0"
+                      max="999.99"
+                      step="0.01" />
+                      
+            <abp-select asp-for="Book.CategoryId"
+                       label="@L["Category"]"
+                       asp-items="@Model.Categories" />
+        </abp-card-body>
+        <abp-card-footer>
+            <abp-button type="submit" 
+                       button-type="Primary" 
+                       text="@L["Save"]" />
+        </abp-card-footer>
+    </abp-card>
+</form>
+
+@section scripts {
+    <script>
+        $(function() {
+            var $form = $('#createBookForm');
+            
+            $form.on('abp-ajax-success', function() {
+                abp.notify.success(L('BookCreatedSuccessfully'));
+                location.href = '/Books';
+            });
+            
+            $form.on('abp-ajax-error', function(err) {
+                abp.notify.error(L('ErrorWhileCreatingBook'));
+            });
+        });
+    </script>
+}
+```
+</example>
+
+<example type="invalid">
+```csharp
+// ❌ Don't use raw HTML forms without ABP integration
+<form action="/api/books" method="post">
+    <div class="form-group">
+        <label>Name</label>
+        <input type="text" name="name" class="form-control" />
+    </div>
+    <button type="submit">Save</button>
+</form>
+
+// ❌ Don't use manual validation without ABP's validation system
+public class BookController : Controller
+{
+    public IActionResult Create(CreateBookDto input)
+    {
+        if (string.IsNullOrEmpty(input.Name))
+        {
+            ModelState.AddModelError("Name", "Name is required");
+        }
+        
+        if (input.Price <= 0)
+        {
+            ModelState.AddModelError("Price", "Price must be positive");
+        }
+        
+        if (!ModelState.IsValid)
+        {
+            return View(input);
+        }
+        
+        // Process the form...
+    }
+}
+
+// ❌ Don't use raw JavaScript for form handling
+<script>
+    $('#myForm').submit(function(e) {
+        e.preventDefault();
+        // Missing proper validation
+        // Missing proper error handling
+        $.post('/api/books', $(this).serialize());
+    });
+</script>
+```
+</example>
+
+## Form Implementation Guidelines
+
+### 1. Form Structure
+- Use proper tag helpers
+- Implement proper layout
+- Handle form state
+- Manage form lifecycle
+
+### 2. Validation
+- Use data annotations
+- Implement FluentValidation
+- Handle client validation
+- Process server validation
+
+### 3. Error Handling
+- Display validation errors
+- Show user feedback
+- Handle server errors
+- Manage form state
+
+### 4. Security
+- Implement CSRF protection
+- Validate input data
+- Handle permissions
+- Secure form submission
+
+### 5. User Experience
+- Show loading states
+- Handle form changes
+- Provide feedback
+- Support responsive design
+

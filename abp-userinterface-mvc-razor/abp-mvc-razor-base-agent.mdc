@@ -1,0 +1,79 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# ABP MVC/Razor Pages UI Development Guidelines
+
+## Critical Rules
+
+- Use Razor Pages for UI development and MVC for HTTP APIs
+- Follow modular development practices by keeping UI components isolated and reusable
+- Utilize the built-in Theme System for consistent UI appearance
+- Leverage pre-installed base libraries (Bootstrap, jQuery, etc.) without manual imports
+- Implement proper layout structures using ABP's layout system
+- Use dynamic JavaScript API client proxies for server communication
+- Apply ABP Tag Helpers for Bootstrap components
+- Follow ABP's bundling and minification practices
+- Implement proper exception handling and validation using ABP's built-in mechanisms
+- Use ABP's localization system for all user-facing text
+- Follow ABP's dependency injection patterns for services
+- Implement proper authorization checks using ABP's permission system
+
+## Examples
+
+<example>
+```csharp
+// Razor Page with proper ABP practices
+public class IndexModel : AbpPageModel
+{
+    private readonly IBookAppService _bookAppService;
+    private readonly IAuthorizationService _authorizationService;
+
+    public IndexModel(
+        IBookAppService bookAppService,
+        IAuthorizationService authorizationService)
+    {
+        _bookAppService = bookAppService;
+        _authorizationService = authorizationService;
+        LocalizationResourceType = typeof(BookStoreResource);
+    }
+
+    public async Task<IActionResult> OnGetAsync()
+    {
+        if (!await _authorizationService.IsGrantedAsync(BookStorePermissions.Books.Default))
+        {
+            return Unauthorized();
+        }
+
+        var books = await _bookAppService.GetListAsync();
+        return Page();
+    }
+}
+```
+</example>
+
+<example type="invalid">
+```csharp
+// Incorrect practices
+public class BooksController : Controller // Should use AbpController
+{
+    private readonly BookManager _bookManager; // Should use IBookAppService
+
+    public IActionResult Index()
+    {
+        // Direct entity usage in UI
+        var books = _bookManager.GetBooks();
+        
+        // Hardcoded text without localization
+        ViewBag.Title = "Book List";
+        
+        // Missing authorization
+        return View(books);
+    }
+}
+```
+</example>
+
+
+

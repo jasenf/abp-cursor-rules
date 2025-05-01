@@ -1,0 +1,330 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# ABP Client-Side Package Management Guidelines
+
+## Critical Rules
+
+- Use ABP's client-side package management system
+- Configure proper library mappings in abp.resourcemapping.js
+- Use proper version management for client libraries
+- Implement proper library bundling
+- Use proper CDN configurations when applicable
+- Handle library dependencies correctly
+- Implement proper fallback providers
+- Use proper library initialization
+- Handle library versioning conflicts
+- Implement proper caching strategies
+- Use proper module loading
+- Handle library path mappings correctly
+- Follow ABP's versioning strategy for packages
+- Use proper development vs production configurations
+- Implement proper package update strategies
+- Handle breaking changes in package updates
+
+## Examples
+
+<example>
+```javascript
+// package.json with proper versioning strategy
+{
+    "version": "1.0.0",
+    "name": "my-app",
+    "private": true,
+    "dependencies": {
+        // Core ABP packages - use exact version matching
+        "@abp/aspnetcore.mvc.ui": "7.4.0",
+        "@abp/aspnetcore.mvc.ui.theme.basic": "7.4.0",
+        "@abp/aspnetcore.mvc.ui.theme.shared": "7.4.0",
+        
+        // ABP modules - use compatible version matching
+        "@abp/jquery": "^7.4.0",
+        "@abp/bootstrap": "^7.4.0",
+        "@abp/font-awesome": "^7.4.0",
+        "@abp/sweetalert2": "^7.4.0",
+        
+        // Third-party packages - use minimum version matching
+        "@fortawesome/fontawesome-free": "~6.4.0",
+        "bootstrap": "~5.3.0",
+        "jquery": "~3.7.0",
+        "sweetalert2": "~11.7.0",
+        
+        // Development dependencies
+        "devDependencies": {
+            "@abp/webpack": "^7.4.0",
+            "@babel/core": "^7.22.0",
+            "css-loader": "^6.8.0",
+            "style-loader": "^3.3.0"
+        }
+    },
+    "scripts": {
+        "start": "gulp",
+        "build": "gulp build",
+        "build:prod": "gulp build --production"
+    }
+}
+
+// abp.resourcemapping.js with comprehensive mapping
+module.exports = {
+    aliases: {
+        // Define aliases for commonly used paths
+        "@node_modules": "./node_modules",
+        "@libs": "./wwwroot/libs",
+        "@styles": "./wwwroot/styles",
+        "@scripts": "./wwwroot/scripts"
+    },
+    clean: [
+        "@libs"
+    ],
+    mappings: {
+        // Core libraries with specific file selection
+        "@node_modules/bootstrap/dist/css/bootstrap.min.css": "@libs/bootstrap/css/",
+        "@node_modules/bootstrap/dist/css/bootstrap.min.css.map": "@libs/bootstrap/css/",
+        "@node_modules/bootstrap/dist/js/bootstrap.bundle.min.js": "@libs/bootstrap/js/",
+        "@node_modules/bootstrap/dist/js/bootstrap.bundle.min.js.map": "@libs/bootstrap/js/",
+        
+        // Font libraries with wildcard patterns
+        "@node_modules/@fortawesome/fontawesome-free/css/all.min.css": "@libs/fontawesome/css/",
+        "@node_modules/@fortawesome/fontawesome-free/webfonts/*.*": "@libs/fontawesome/webfonts/",
+        
+        // jQuery and related plugins
+        "@node_modules/jquery/dist/jquery.min.js": "@libs/jquery/",
+        "@node_modules/jquery-validation/dist/jquery.validate.min.js": "@libs/jquery-validation/",
+        "@node_modules/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js": "@libs/jquery-validation-unobtrusive/",
+        
+        // Additional libraries with CDN fallbacks
+        "@node_modules/sweetalert2/dist/*.*": "@libs/sweetalert2/",
+        "@node_modules/luxon/build/global/*.*": "@libs/luxon/",
+        "@node_modules/toastr/build/*.*": "@libs/toastr/"
+    },
+    // Development-specific mappings
+    development: {
+        mappings: {
+            // Include source maps and unminified versions
+            "@node_modules/bootstrap/dist/css/bootstrap.css": "@libs/bootstrap/css/",
+            "@node_modules/bootstrap/dist/js/bootstrap.bundle.js": "@libs/bootstrap/js/"
+        }
+    },
+    // Production-specific mappings
+    production: {
+        mappings: {
+            // Only include minified versions
+            "@node_modules/bootstrap/dist/css/bootstrap.min.css": "@libs/bootstrap/css/",
+            "@node_modules/bootstrap/dist/js/bootstrap.bundle.min.js": "@libs/bootstrap/js/"
+        }
+    }
+};
+
+// Startup.cs with CDN configuration
+public class Startup
+{
+    public void ConfigureServices(IServiceCollection services)
+    {
+        services.Configure<AbpBundlingOptions>(options =>
+        {
+            options.StyleBundles.Configure("Global", bundle =>
+            {
+                // Configure CDN with fallback
+                bundle.AddBaseBundles("Global");
+                bundle.AddFiles("/libs/bootstrap/css/bootstrap.min.css")
+                    .UseCdn("https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css", 
+                           "/libs/bootstrap/css/bootstrap.min.css");
+                    
+                bundle.AddFiles("/libs/fontawesome/css/all.min.css")
+                    .UseCdn("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css",
+                           "/libs/fontawesome/css/all.min.css");
+            });
+
+            options.ScriptBundles.Configure("Global", bundle =>
+            {
+                bundle.AddBaseBundles("Global");
+                bundle.AddFiles("/libs/jquery/jquery.min.js")
+                    .UseCdn("https://code.jquery.com/jquery-3.7.0.min.js",
+                           "/libs/jquery/jquery.min.js");
+                           
+                bundle.AddFiles("/libs/bootstrap/js/bootstrap.bundle.min.js")
+                    .UseCdn("https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js",
+                           "/libs/bootstrap/js/bootstrap.bundle.min.js");
+            });
+        });
+    }
+}
+
+// _Layout.cshtml with proper bundle usage
+<!DOCTYPE html>
+<html>
+<head>
+    <abp-style-bundle name="Global">
+        <abp-style type="cdn" src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+        <abp-style src="/libs/fontawesome/css/all.min.css" />
+        <abp-style src="/styles/global.css" />
+    </abp-style-bundle>
+</head>
+<body>
+    @RenderBody()
+    
+    <abp-script-bundle name="Global">
+        <abp-script type="cdn" src="https://code.jquery.com/jquery-3.7.0.min.js" />
+        <abp-script type="cdn" src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" />
+        <abp-script src="/scripts/global.js" />
+    </abp-script-bundle>
+    
+    @await RenderSectionAsync("scripts", required: false)
+</body>
+</html>
+```
+</example>
+
+<example type="invalid">
+```javascript
+// ❌ Don't manually include scripts and styles
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="/lib/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body>
+    <script src="/lib/jquery/jquery.min.js"></script>
+    <script src="/lib/bootstrap/js/bootstrap.min.js"></script>
+</body>
+</html>
+
+// ❌ Don't use direct npm paths without mapping
+{
+    "mappings": {
+        "node_modules/jquery/dist/jquery.min.js": "wwwroot/lib/jquery/"
+    }
+}
+
+// ❌ Don't mix different versions of the same library
+{
+    "dependencies": {
+        "@abp/jquery": "^7.4.0",
+        "jquery": "^3.5.0" // Conflict with ABP's jquery version
+    }
+}
+
+// ❌ Don't bypass ABP's bundling system
+public class Startup
+{
+    public void Configure(IApplicationBuilder app)
+    {
+        app.UseStaticFiles();
+        // Missing proper bundling configuration
+        // Missing proper resource mapping
+    }
+}
+
+// ❌ Don't use inconsistent versioning strategies
+{
+    "dependencies": {
+        "@abp/aspnetcore.mvc.ui": "~7.4.0", // Should be exact version
+        "@abp/jquery": "7.4.0", // Should use ^ for compatibility
+        "bootstrap": "^5.3.0" // Should use ~ for third-party
+    }
+}
+
+// ❌ Don't mix CDN providers without fallbacks
+<head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- Missing fallback -->
+</head>
+```
+</example>
+
+## Package Management Guidelines
+
+### 1. Package Configuration
+- Use proper version constraints
+  - Exact versions for core ABP packages
+  - Compatible versions for ABP modules
+  - Minimum versions for third-party packages
+- Handle dependencies correctly
+  - Check for conflicts
+  - Maintain version alignment
+  - Use peer dependencies when needed
+- Configure proper mappings
+  - Use clear path aliases
+  - Handle file patterns correctly
+  - Manage source maps
+- Manage package updates
+  - Follow update strategy
+  - Handle breaking changes
+  - Maintain changelog
+
+### 2. Resource Management
+- Configure proper bundles
+  - Group related resources
+  - Order dependencies correctly
+  - Handle async loading
+- Handle resource paths
+  - Use proper aliases
+  - Manage file patterns
+  - Handle environment differences
+- Manage static files
+  - Configure proper serving
+  - Handle caching
+  - Implement compression
+- Configure CDN usage
+  - Set up fallbacks
+  - Handle versioning
+  - Manage regional endpoints
+
+### 3. Performance
+- Implement proper caching
+  - Configure cache headers
+  - Use versioned URLs
+  - Handle cache busting
+- Configure bundling
+  - Optimize bundle size
+  - Minimize requests
+  - Handle code splitting
+- Handle async loading
+  - Use defer when appropriate
+  - Implement lazy loading
+  - Manage dependencies
+- Optimize resource delivery
+  - Use compression
+  - Implement HTTP/2
+  - Configure preloading
+
+### 4. Versioning
+- Handle version conflicts
+  - Resolve dependency issues
+  - Maintain compatibility
+  - Document changes
+- Manage updates
+  - Follow update strategy
+  - Test compatibility
+  - Handle migrations
+- Configure fallbacks
+  - Implement CDN fallbacks
+  - Handle offline scenarios
+  - Manage failover
+- Handle breaking changes
+  - Document impacts
+  - Plan migrations
+  - Test thoroughly
+
+### 5. Security
+- Use secure sources
+  - Verify package integrity
+  - Use trusted registries
+  - Implement checksums
+- Validate package integrity
+  - Check signatures
+  - Verify hashes
+  - Monitor vulnerabilities
+- Handle vulnerabilities
+  - Monitor security alerts
+  - Apply patches promptly
+  - Document mitigations
+- Configure CSP headers
+  - Set proper directives
+  - Handle CDN sources
+  - Manage inline scripts
+
+
+

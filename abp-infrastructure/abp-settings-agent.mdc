@@ -1,0 +1,255 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# ABP Settings Management Guidelines
+
+## Critical Rules
+
+### Code Organization
+- Place all settings-related code in `Settings` folders within appropriate projects:
+  - Setting definitions and constants -> Domain.Shared/Settings/
+  - Value providers and encryption -> Domain/Settings/
+  - DTOs and interfaces -> Application.Contracts/Settings/
+  - Services -> Application/Settings/
+  - UI components -> Web/Settings/
+- Follow naming pattern: `{ModuleName}Settings.cs` for constants, `{ModuleName}SettingDefinitionProvider.cs` for definitions
+- Group related settings under a common prefix (e.g., "MyModule.Feature.Setting")
+- Follow ABP's layered architecture: Domain.Shared -> Domain -> Application.Contracts -> Application -> Web
+
+### Implementation Standards
+- Define setting names as constants in a static class in Domain.Shared project
+- Use `ISettingDefinitionManager` to define settings in module's `ConfigureServices`
+- Always inject `ISettingProvider` to read setting values
+- Use async methods exclusively (`GetOrNullAsync`, `GetAsync<T>`)
+- Implement `ISettingValueProvider` when creating custom setting providers
+- Follow provider hierarchy: User -> Tenant -> Global -> Configuration -> Default
+- Use strongly-typed configuration when possible
+- Follow setting provider name conventions: "U" for User, "T" for Tenant, "G" for Global
+- Register custom setting value providers explicitly in `AbpSettingOptions`
+- Consider caching strategies for frequently accessed settings
+
+### Security and Configuration
+- Set `IsEncrypted` true for sensitive settings
+- Use `ISettingEncryptionService` for encrypting values
+- Store encrypted keys in user secrets or environment variables, never in source control
+- Place configuration in "Settings" section of appsettings.json
+- Implement proper setting value validation before saving
+- Store environment-specific settings in appropriate appsettings.{env}.json files
+- Never store unencrypted sensitive data in the settings store
+
+### Settings Management
+- Always use the Setting Management Module when you need to persist settings in a database
+- Implement `ISettingStore` when creating a custom setting storage mechanism
+- Use setting management module's UI when you need a user interface to manage settings
+- Always validate setting values before saving them to any store
+- Implement proper setting value provider fallback chain
+- Consider caching strategies for frequently accessed settings
+
+## Examples
+
+<example>
+  ```plaintext
+  YourModule.Domain.Shared/
+    Settings/
+      YourModuleSettings.cs                 # Constants
+      YourModuleSettingDefinitionProvider.cs # Definitions
+      
+  YourModule.Domain/
+    Settings/
+      CustomSettingValueProvider.cs         # Custom providers
+      SettingEncryptionService.cs          # Encryption
+      CustomSettingStore.cs                # Custom storage
+      
+  YourModule.Application.Contracts/
+    Settings/
+      Dtos/
+        UpdateSettingsDto.cs
+      ISettingsAppService.cs
+      
+  YourModule.Application/
+    Settings/
+      SettingsAppService.cs
+      
+  YourModule.Web/
+    Settings/
+      Components/
+        SettingManagement/
+          Default.cshtml
+      Pages/
+        Settings/
+          Index.cshtml
+  ```
+
+  ```csharp
+  // Domain.Shared/Settings/YourModuleSettings.cs
+  public static class YourModuleSettings
+  {
+      private const string Prefix = "YourModule";
+      
+      public static class Email
+      {
+          private const string GroupName = Prefix + ".Email";
+          
+          public const string SmtpHost = GroupName + ".SmtpHost";
+          public const string SmtpPort = GroupName + ".SmtpPort";
+          public const string Password = GroupName + ".Password";
+      }
+  }
+
+  // Domain.Shared/Settings/YourModuleSettingDefinitionProvider.cs
+  public class YourModuleSettingDefinitionProvider : SettingDefinitionProvider
+  {
+      public override void Define(ISettingDefinitionContext context)
+      {
+          context.Add(
+              new SettingDefinition(
+                  YourModuleSettings.Email.SmtpHost
+              ).WithProperty("Group", "Email"),
+              
+              new SettingDefinition(
+                  YourModuleSettings.Email.Password,
+                  isEncrypted: true
+              )
+          );
+      }
+  }
+
+  // Domain/Settings/CustomSettingValueProvider.cs
+  public class CustomSettingValueProvider : SettingValueProvider
+  {
+      public override string Name => "C"; // Short name convention
+      
+      public CustomSettingValueProvider(ISettingStore settingStore) 
+          : base(settingStore)
+      {
+      }
+      
+      public override async Task<string> GetOrNullAsync(SettingDefinition setting)
+      {
+          // Implement custom logic
+          return await Task.FromResult<string>(null);
+      }
+  }
+
+  // Application/Settings/SettingsAppService.cs
+  public class SettingsAppService : ApplicationService, ISettingsAppService
+  {
+      private readonly ISettingProvider _settingProvider;
+      private readonly ISettingEncryptionService _encryptionService;
+      
+      public SettingsAppService(
+          ISettingProvider settingProvider,
+          ISettingEncryptionService encryptionService)
+      {
+          _settingProvider = settingProvider;
+          _encryptionService = encryptionService;
+      }
+      
+      public async Task<string> GetSmtpHostAsync()
+      {
+          return await _settingProvider.GetOrNullAsync(
+              YourModuleSettings.Email.SmtpHost
+          );
+      }
+      
+      public async Task SavePasswordAsync(string password)
+      {
+          // Encrypt sensitive data before saving
+          var encrypted = _encryptionService.Encrypt(password);
+          await _settingProvider.SetAsync(
+              YourModuleSettings.Email.Password,
+              encrypted
+          );
+      }
+  }
+
+  // Module configuration
+  public class YourModule : AbpModule
+  {
+      public override void ConfigureServices(ServiceConfigurationContext context)
+      {
+          Configure<AbpSettingOptions>(options =>
+          {
+              options.ValueProviders.Add<CustomSettingValueProvider>();
+          });
+      }
+  }
+
+  // appsettings.json
+  {
+    "Settings": {
+      "YourModule.Email.SmtpHost": "smtp.yourmodule.com",
+      "YourModule.Email.SmtpPort": "587"
+    }
+  }
+  ```
+</example>
+
+<example type="invalid">
+  ```csharp
+  // DON'T: Wrong project structure
+  YourModule.Web/
+    EmailSettings.cs        # Wrong: Settings belong in Domain.Shared
+
+  // DON'T: Hardcoded setting names
+  public class EmailService
+  {
+      public async Task<string> GetHost()
+      {
+          return await _settingProvider.GetOrNullAsync("SmtpHost");
+      }
+  }
+
+  // DON'T: Mixed responsibilities
+  public class SettingsController : Controller
+  {
+      public void DefineSettings() { } // Wrong: Should be in SettingDefinitionProvider
+  }
+
+  // DON'T: Synchronous operations
+  public class SyncSettingProvider : ISettingValueProvider
+  {
+      public string GetOrNull(SettingDefinition setting) // Wrong: Should be async
+      {
+          return null;
+      }
+  }
+
+  // DON'T: Incorrect configuration structure
+  {
+    "SmtpSettings": {      # Wrong: Should be under "Settings" section
+      "Host": "smtp.example.com"
+    }
+  }
+
+  // DON'T: Sensitive data exposure
+  public class InsecureSettings
+  {
+      public const string Password = "defaultPassword"; // Wrong: Exposed sensitive data
+      public const string ApiKey = "12345"; // Wrong: Not encrypted
+  }
+
+  // DON'T: Long provider names
+  public class WrongSettingValueProvider : SettingValueProvider
+  {
+      public override string Name => "CustomLongName"; // Wrong: Use short names like "C"
+  }
+
+  // DON'T: Skip validation
+  public class InvalidSettingsManager
+  {
+      public async Task SavePortSetting(string port)
+      {
+          // Wrong: No validation before saving
+          await _settingManager.SetAsync("Smtp.Port", port);
+      }
+  }
+  ```
+</example>
+
+
+
+
+

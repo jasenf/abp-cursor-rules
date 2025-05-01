@@ -1,0 +1,214 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# ABP Modal and Alert Management Guidelines
+
+## Critical Rules
+
+- Use `abp-modal` tag helper for creating modal dialogs instead of raw Bootstrap modals
+- Implement `abp.ModalManager` for client-side modal management and lifecycle
+- Place modal views in separate .cshtml files with Layout = null
+- Use `abp-modal-header`, `abp-modal-body`, and `abp-modal-footer` tag helpers for consistent structure
+- Implement proper form validation using ABP's validation infrastructure
+- Use `abp-dynamic-form` for automatic form generation in modals when applicable
+- Handle modal results using the `onResult` callback pattern
+- Implement proper modal cancellation handling with form change checks
+- Use lazy loading for modal scripts when appropriate
+- Follow proper bundling practices for modal-related scripts
+- Register modal events using ModalManager's event registration methods
+- Use proper error handling and display in modals
+- Use abp.notify for showing notifications (success, info, warning, error)
+- Implement abp.message for user confirmations and alerts
+- Use L() function for localizing alert messages
+- Follow proper alert positioning and stacking
+- Implement proper alert duration based on message importance
+- Use sweetalert2 integration for complex alerts when needed
+
+## Examples
+
+<example>
+```csharp
+// Project: MyApp.Web
+// Location: /Pages/Products/CreateProductModal.cshtml
+@page
+@using MyApp.Web.Pages.Products
+@model CreateProductModalModel
+@{
+    Layout = null;
+}
+
+<abp-modal>
+    <abp-modal-header title="@L["CreateProduct"]"></abp-modal-header>
+    <abp-modal-body>
+        <form id="createProductForm" 
+              method="post" 
+              action="@Url.Page("/Products/CreateProductModal")"
+              data-check-form-on-close="true">
+            <abp-input asp-for="Product.Name" />
+            <abp-input asp-for="Product.Price" />
+            <abp-select asp-for="Product.CategoryId" asp-items="Model.Categories"/>
+        </form>
+    </abp-modal-body>
+    <abp-modal-footer buttons="@(AbpModalButtons.Save|AbpModalButtons.Cancel)"></abp-modal-footer>
+</abp-modal>
+
+// Project: MyApp.Web
+// Location: /Pages/Products/CreateProductModal.js
+abp.modals.CreateProduct = function() {
+    function initModal(modalManager, args) {
+        var $modal = modalManager.getModal();
+        var $form = modalManager.getForm();
+        
+        $form.on('abp-ajax-success', function() {
+            modalManager.setResult();
+            modalManager.close();
+        });
+    }
+    
+    return {
+        initModal: initModal
+    };
+};
+
+// Project: MyApp.Web
+// Location: /Pages/Products/Index.js
+var createProductModal = new abp.ModalManager({
+    viewUrl: '/Products/CreateProductModal',
+    scriptUrl: '/Pages/Products/CreateProductModal.js',
+    modalClass: 'CreateProduct'
+});
+
+createProductModal.onResult(function() {
+    abp.notify.success(L('ProductCreatedSuccessfully'));
+    dataTable.ajax.reload();
+});
+```
+</example>
+
+<example type="invalid">
+```csharp
+// ❌ Incorrect modal implementation
+// Project: MyApp.Web
+// Location: /Pages/Products/BadModal.cshtml
+
+// Don't use raw Bootstrap modals
+<div class="modal fade" id="createModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Missing ABP integration -->
+            <form>
+                <input type="text" name="name" />
+                <!-- Missing validation -->
+                <button type="submit">Save</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+// ❌ Incorrect JavaScript implementation
+// Don't use jQuery directly for modal management
+$('#createModal').modal('show');
+$('#createForm').submit(function(e) {
+    e.preventDefault();
+    // Missing proper ABP ajax integration
+    $.post('/api/products', $(this).serialize());
+});
+```
+</example>
+
+## Modal Implementation Guidelines
+
+### 1. Modal Structure
+- Use proper tag helpers for modal structure
+- Implement proper form validation
+- Handle modal lifecycle events
+- Manage modal state and results
+
+### 2. Script Organization
+- Place modal scripts in separate files
+- Use proper bundling for efficiency
+- Implement proper initialization
+- Handle modal events correctly
+
+### 3. Validation Integration
+- Use ABP's validation infrastructure
+- Implement client-side validation
+- Handle server-side validation
+- Display validation errors properly
+
+### 4. Event Handling
+- Register proper modal events
+- Handle form submission correctly
+- Manage modal closure appropriately
+- Implement result callbacks
+
+### 5. Error Handling
+- Display server errors properly
+- Handle validation failures
+- Manage modal state during errors
+- Provide user feedback
+
+## Implementation Checklist
+
+1. Modal Structure
+   - [ ] Using proper ABP tag helpers
+   - [ ] Correct form setup
+   - [ ] Proper validation integration
+   - [ ] Localization implementation
+
+2. Script Management
+   - [ ] Separate script files
+   - [ ] Proper bundling setup
+   - [ ] Event registration
+   - [ ] Result handling
+
+3. Validation
+   - [ ] Client-side validation
+   - [ ] Server-side validation
+   - [ ] Error display
+   - [ ] Form state management
+
+4. Event Handling
+   - [ ] Open/Close events
+   - [ ] Form submission
+   - [ ] Result callbacks
+   - [ ] Error handling
+
+5. User Experience
+   - [ ] Loading states
+   - [ ] Error messages
+   - [ ] Success feedback
+   - [ ] Form change tracking
+
+## Alert Types and Usage
+
+### 1. Notifications (abp.notify)
+- Success: Operation completed successfully
+- Info: General information
+- Warning: Non-critical warnings
+- Error: Operation failures
+
+### 2. Messages (abp.message)
+- Confirm: User confirmations
+- Error: Error messages
+- Info: Information dialogs
+- Warning: Warning messages
+
+### 3. Alert Options
+- Duration: Set appropriate timeouts
+- Position: Consider UI layout
+- Stacking: Handle multiple alerts
+- Interaction: User dismissal options
+
+### 4. Best Practices
+- Always use localization
+- Set appropriate duration
+- Use proper alert type
+- Consider mobile views
+- Handle alert queuing
+
+
+
+

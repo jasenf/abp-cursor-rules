@@ -1,0 +1,66 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# ABP UI Customization Guidelines
+
+## Critical Rules
+
+- Follow proper component override patterns for customizing pre-built modules
+- Implement proper page customization through supported methods
+- Use proper static resource overriding techniques
+- Apply bundle customization through ABP's bundling system
+- Follow theme customization best practices
+- Implement proper layout customization using ABP's layout system
+- Use proper localization overrides when customizing content
+- Maintain modularity when implementing custom UI components
+
+## Examples
+
+<example>
+```csharp
+// Proper page override
+public class CustomBookListPageModel : BookListPageModel
+{
+    public CustomBookListPageModel(IBookAppService bookAppService) 
+        : base(bookAppService)
+    {
+    }
+
+    public override async Task OnGetAsync()
+    {
+        await base.OnGetAsync();
+        // Add custom logic
+    }
+}
+
+// Proper bundle customization
+public class CustomBundleContributor : BundleContributor
+{
+    public override void ConfigureBundle(BundleConfigurationContext context)
+    {
+        context.Files.Add("/js/custom-script.js");
+    }
+}
+```
+</example>
+
+<example type="invalid">
+```csharp
+// Don't modify module files directly
+public class BookListPageModel
+{
+    // Direct modification of module code
+}
+
+// Don't bypass bundling system
+public class Startup
+{
+    public void Configure(IApplicationBuilder app)
+    {
+        app.UseStaticFiles(); // Don't serve static files without proper bundling
+    }
+}
+```
+</example>
