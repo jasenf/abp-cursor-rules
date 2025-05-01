@@ -1,0 +1,166 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: >
+  Domain Layer rules for ABP Framework projects using Domain-Driven Design (DDD).
+  Enforces inheritance from ABP base classes, invariant protection, property constraints,
+  aggregate boundaries, and isolation from other layers.
+globs:
+  - "**/Domain/**/*.cs"
+  - "**/Domain.Shared/**/*.cs"
+alwaysApply: false
+---
+
+# ABP Framework Domain Layer Rules
+
+These rules enforce best practices for writing rich, behavior-centric domain models in ABP projects.
+The focus is on aligning with DDD principles and leveraging ABP's infrastructure correctly.
+
+**Library Information:**
+- Name: abp-domain-layer
+- Tags: abp, ddd, domain, architecture, csharp
+
+---
+
+## 1. Entity Inheritance & Modeling
+
+### 1.1 Use ABP Base Classes
+* **Rule:** All aggregate roots must inherit from `AggregateRoot`, `AuditedAggregateRoot`, or `FullAuditedAggregateRoot`.
+* **Why:** This ensures built-in support for audit tracking, tenant info, soft delete, and consistent ID handling.
+
+### 1.2 Use GUID as Primary Key
+* **Rule:** Default to `Guid` as the primary key type for all entities unless you have a strong reason not to.
+* **Why:** ABP templates and multi-tenancy modules assume GUIDs for uniqueness across services.
+
+---
+
+## 2. Business Logic & Invariants
+
+### 2.1 Protect Invariants Internally
+* **Rule:** Validate state in constructors or public methods, not externally. Do **not** expose public setters for properties with rules.
+* **Why:** This enforces encapsulation and ensures the entity always remains valid.
+
+```csharp
+// ✅ Good
+public Product(string name, decimal price)
+{
+    if (price < 0) throw new BusinessException("Price must be positive.");
+    Name = name;
+    Price = price;
+}
+
+// ❌ Bad
+public string Name { get; set; }
+public decimal Price { get; set; }
+```
+
+---
+
+## 3. Property Constraints & Constants
+
+### 3.1 Define and Reuse Constants
+* **Rule:** All string length or numeric constraints should use constants, defined in the `Domain.Shared` project if shared across modules.
+* **Why:** Ensures consistent validation across all layers (domain, app, UI, API).
+
+```csharp
+public const int MaxNameLength = 128;
+```
+
+---
+
+## 4. Soft Delete & Audit Fields
+
+### 4.1 Use ABP Interfaces and Base Types
+* **Rule:** Use `ISoftDelete`, `IMayHaveTenant`, and auditing base classes to enable ABP’s built-in lifecycle tracking.
+* **Why:** Avoid duplicating infrastructure logic and ensure consistency with the framework.
+
+```csharp
+public class Product : FullAuditedAggregateRoot<Guid>, ISoftDelete
+{
+    public string Name { get; private set; }
+    public bool IsDeleted { get; set; }
+}
+```
+
+---
+
+## 5. Aggregate Boundaries & Relationships
+
+### 5.1 Only Access Aggregates via Root
+* **Rule:** All access to child entities should go through the aggregate root.
+* **Why:** This preserves invariants and transactional consistency.
+
+```csharp
+// Good
+order.AddOrderLine(productId, quantity);
+
+// Bad
+order.OrderLines.Add(new OrderLine { ... });
+```
+
+---
+
+## 6. Layer Isolation
+
+### 6.1 No UI or Infra References
+* **Rule:** Domain layer must **not** reference EF Core, UI types, external APIs, or service classes.
+* **Why:** This ensures the domain model remains portable, testable, and decoupled.
+
+```csharp
+// ❌ Wrong: this pulls in infrastructure concern
+public DbContext Context { get; set; }
+```
+
+---
+
+## 7. Rationale
+
+Maintaining clean boundaries and rich domain models is critical for any complex application. By enforcing these domain-layer rules:
+
+- We prevent fragile, leaky architectures.
+- Domain models reflect true business logic, not just data.
+- ABP’s infrastructure is fully leveraged instead of reimplemented.
+- Long-term maintainability and testability improve drastically.
+
+---
+
+## 8. Examples
+
+<example>
+
+```csharp
+// ✅ Correct Entity
+public class Invoice : FullAuditedAggregateRoot<Guid>
+{
+    public string Number { get; private set; }
+    public decimal Total { get; private set; }
+
+    public Invoice(string number, decimal total)
+    {
+        if (string.IsNullOrWhiteSpace(number))
+            throw new BusinessException("Invoice number required.");
+        if (total <= 0)
+            throw new BusinessException("Total must be positive.");
+
+        Number = number;
+        Total = total;
+    }
+}
+```
+</example>
+
+<example type="invalid">
+
+```csharp
+// ❌ Violates multiple rules
+public class Invoice
+{
+    public string Number { get; set; }
+    public decimal Total { get; set; }
+    public DbContext Context { get; set; } // Infra dependency
+}
+```
+</example>

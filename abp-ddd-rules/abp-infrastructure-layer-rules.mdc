@@ -1,0 +1,151 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: >
+  Infrastructure and Data Access Layer rules for ABP Framework projects using DDD.
+  Enforces use of ABP repositories, EF Core best practices, data seeding patterns,
+  caching, and separation from domain logic.
+globs:
+  - "**/EntityFrameworkCore/**/*.cs"
+  - "**/MongoDB/**/*.cs"
+  - "**/Infrastructure/**/*.cs"
+alwaysApply: false
+---
+
+# ABP Framework Infrastructure & Data Access Layer Rules
+
+These rules enforce best practices for managing persistence and infrastructure concerns in ABP-based projects.
+Focus is placed on repository usage, entity configuration, migrations, and caching with clear separation from the domain model.
+
+**Library Information:**
+- Name: abp-infrastructure-data
+- Tags: abp, ddd, infrastructure, repository, efcore, caching
+
+---
+
+## 1. Repository Usage
+
+### 1.1 Use ABP Generic Repositories
+* **Rule:** Use `IRepository<TEntity, TKey>` or `IReadOnlyRepository<TEntity, TKey>` from ABP.
+* **Why:** Reduces boilerplate and aligns with ABP’s conventions and unit of work system.
+
+### 1.2 Create Custom Repositories When Needed
+* **Rule:** Create `I<AggregateName>Repository` interfaces and implementations only when complex queries or behavior are needed.
+* **Why:** Keeps repositories clean and focused.
+
+---
+
+## 2. Entity Framework Core Best Practices
+
+### 2.1 Use Fluent API for Configuration
+* **Rule:** Prefer Fluent API for defining entity configuration over attributes.
+* **Why:** Keeps domain entities cleaner and allows centralized configuration.
+
+```csharp
+builder.Property(x => x.Name)
+       .IsRequired()
+       .HasMaxLength(ProductConsts.MaxNameLength);
+```
+
+---
+
+### 2.2 Define DbContext per Module
+* **Rule:** Each module should have its own DbContext. Avoid using a global or shared one.
+* **Why:** Supports modularity and independence between features.
+
+---
+
+### 2.3 Never Use DbContext Directly Outside Repositories
+* **Rule:** Application services or external layers must not access `DbContext` directly.
+* **Why:** Violates the repository abstraction and introduces tight coupling.
+
+---
+
+## 3. Data Seeding
+
+### 3.1 Use IDataSeedContributor
+* **Rule:** Implement `IDataSeedContributor` for seeding data, using `IDataSeeder` when dependencies exist.
+* **Why:** Keeps data seeding consistent and environment-aware.
+
+```csharp
+public class MyDataSeeder : IDataSeedContributor
+{
+    public async Task SeedAsync(DataSeedContext context)
+    {
+        // seed data here
+    }
+}
+```
+
+---
+
+## 4. Migrations
+
+### 4.1 Keep Migrations per Module
+* **Rule:** Each module should maintain its own migrations folder.
+* **Why:** Improves organization and traceability of schema changes.
+
+---
+
+## 5. Caching
+
+### 5.1 Use IDistributedCache and ABP Caching
+* **Rule:** Use `IDistributedCache<T>` or ABP's `ICacheManager` abstractions for caching.
+* **Why:** Provides scalable caching with support for Redis or other providers.
+
+---
+
+## 6. Isolation from Domain Logic
+
+### 6.1 Infrastructure Layer Must Not Contain Business Logic
+* **Rule:** Keep infrastructure focused on cross-cutting concerns like persistence, email, file storage, etc.
+* **Why:** Domain logic should live in the Domain layer or Domain Services.
+
+---
+
+## 7. Rationale
+
+These infrastructure rules ensure:
+- Proper use of ABP abstractions and patterns.
+- Clean separation of concerns.
+- Performance through caching and optimized DB access.
+- Scalable modular data layers across large systems.
+
+---
+
+## 8. Examples
+
+<example>
+
+```csharp
+// ✅ Repository with custom method
+public interface IProductRepository : IRepository<Product, Guid>
+{
+    Task<List<Product>> GetTopSellingAsync(int maxCount);
+}
+```
+</example>
+
+<example type="invalid">
+
+```csharp
+// ❌ Direct use of DbContext in app service
+public class ProductAppService
+{
+    private readonly MyDbContext _context;
+
+    public ProductAppService(MyDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<List<Product>> GetAllAsync()
+    {
+        return await _context.Products.ToListAsync(); // ❌ breaks repository abstraction
+    }
+}
+```
+</example>
