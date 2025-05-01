@@ -33,9 +33,9 @@ Currently, the rules primarily focus on MVC Razor Pages as the UI platform. We w
 git clone https://github.com/yourusername/abp-cursor-rules.git
 ```
 
-2. Copy the rules to your Cursor rules directory:
+2. Copy the ABP rules to your Cursor rules directory:
 ```bash
-cp -r abp-cursor-rules/* ~/.cursor/rules/
+cp -r abp-*/ ~/.cursor/rules/
 ```
 
 3. Restart Cursor IDE to apply the new rules
